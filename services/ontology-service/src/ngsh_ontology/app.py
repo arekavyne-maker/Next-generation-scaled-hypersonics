@@ -116,7 +116,8 @@ async def validate(request: Request, body: dict[str, Any] = Body(...)) -> dict[s
 
     if kind == "entity":
         entity = _coerce_entity(body.get("entity") or body)
-        errors = reg.validate_entity(entity)
+        current = body.get("currentClassification")
+        errors = reg.validate_entity_update(entity, current) if current else reg.validate_entity(entity)
         return {"valid": not errors, "kind": "entity", "errors": errors}
 
     if kind == "relation":

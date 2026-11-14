@@ -154,7 +154,8 @@ class EventLog:
 
     def next_sequence(self, aggregate_id: str) -> int:
         row = self._db.fetchone(
-            "SELECT last_sequence FROM aggregate_heads WHERE aggregate_id = ?", (aggregate_id,)
+            "SELECT last_sequence FROM aggregate_heads WHERE aggregate_id = ?",
+            (aggregate_id,),
         )
         return int(row["last_sequence"]) + 1 if row else 1
 

@@ -137,7 +137,10 @@ class EventOutcome:
 
     @property
     def accepted(self) -> bool:
-        return self.resolution in {Resolution.ACCEPTED, Resolution.APPLIED_DETERMINISTIC_WINNER}
+        return self.resolution in {
+            Resolution.ACCEPTED,
+            Resolution.APPLIED_DETERMINISTIC_WINNER,
+        }
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -376,7 +379,10 @@ class Reconciler:
         """Immutable evidence: a superseding record is accepted, a rival claim is not."""
         supersedes = envelope.payload.get("supersedesRef")
         if supersedes:
-            return self._accept(envelope, f"supersedes {supersedes}; accepted as a new version of the result")
+            return self._accept(
+                envelope,
+                f"supersedes {supersedes}; accepted as a new version of the result",
+            )
 
         key = self._immutable_key(envelope)
         if key is not None and key in self.state.immutable_keys:

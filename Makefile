@@ -55,6 +55,14 @@ format: ## Auto-format the Python code
 contracts: ## Validate the contract layer
 	$(PY) tools/validate_contracts.py
 
+.PHONY: codegen
+codegen: ## Regenerate the typed models from the contract layer
+	$(PY) tools/codegen/generate.py
+
+.PHONY: codegen-check
+codegen-check: ## Fail if the generated models are out of date
+	$(PY) tools/codegen/generate.py --check
+
 .PHONY: dev
 dev: ## Run all six foundation services locally
 	@$(PY) scripts/run_stack.py
@@ -113,5 +121,5 @@ clean: ## Remove local state
 	find . -name '__pycache__' -type d -prune -exec rm -rf {} +
 
 .PHONY: verify
-verify: lint contracts test ## Run every gate
+verify: lint contracts codegen-check test ## Run every gate
 	@echo "All gates passed."

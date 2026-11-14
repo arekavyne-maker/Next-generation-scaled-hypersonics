@@ -16,6 +16,8 @@ service knows about the audit service even though it does not own it.
 
 from __future__ import annotations
 
+import contextlib
+import logging
 from typing import Any
 
 from fastapi import APIRouter, Body, FastAPI, Request
@@ -25,12 +27,15 @@ from ngsh_core.config import Settings, load_settings
 from ngsh_core.envelope import Actor
 from ngsh_core.errors import ValidationError
 from ngsh_core.policy import PolicySet, Resource
+from ngsh_core.store import open_database
 
 SERVICE_NAME = "policy"
 DESCRIPTION = (
     "Attribute-based access control for the NGSH platform. Separate policy "
     "decision and enforcement points, explicit deny precedence, obligations on allow."
 )
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/v1", tags=["policy"])
 
@@ -97,7 +102,7 @@ async def _record_decision(
         "resource": {
             "type": resource.type,
             "id": resource.id,
-            "classification": {"level": resource.classification},
+            "classification": {"level": resource.classification.level},
             "tenant": resource.tenant,
             "program": resource.program,
         },
@@ -108,14 +113,15 @@ async def _record_decision(
         "reason": decision.get("reason", ""),
     }
 
+    entry["enforcementPoint"] = request.app.state.settings.enforcement_point
+
     if not audit_url:
         # Single-process development mode: the audit service shares the
         # platform database, so write the ledger entry directly.
-        try:
+        with contextlib.suppress(Exception):
             request.app.state.ledger.append("access.decision.recorded", entry)
-            return
-        except Exception:
-            return
+        await _publish_decision_event(request, entry, decision)
+        return
 
     try:
         import httpx
@@ -126,6 +132,73 @@ async def _record_decision(
             )
     except Exception:
         # Deliberately swallowed: see the docstring above.
+        pass
+
+    await _publish_decision_event(request, entry, decision)
+
+
+async def _publish_decision_event(request: Request, entry: dict[str, Any], decision: dict[str, Any]) -> None:
+    """Publish the decision to the fabric as an ``access.decision.recorded`` event.
+
+    Every decision produces both a ledger entry and an event (roadmap exit
+    criterion I0-4). The two are cross-checked: the ledger is the tamper
+    evident record and the event is the queryable one, and a mismatch
+    between them is itself a finding.
+    """
+    settings = request.app.state.settings
+    resource = entry.get("resource", {})
+
+    try:
+        from ngsh_core.envelope import Actor, Classification, EventEnvelope
+
+        subject = entry.get("subject", {})
+        actor = Actor.model_validate(subject) if subject else Actor(subjectId="unknown")
+
+        # The decision has its own aggregate, separate from the resource it
+        # concerns. Sharing the resource's sequence space would interleave
+        # decisions with the resource's own history.
+        aggregate_id = f"AccessDecision:{resource.get('type', 'unknown')}:{resource.get('id', 'unknown')}"
+
+        event = EventEnvelope(
+            eventType="access.decision.recorded",
+            aggregateType="AccessDecision",
+            aggregateId=aggregate_id,
+            sequence=request.app.state.decision_sequence(aggregate_id),
+            tenant=settings.tenant,
+            actor=actor,
+            classification=Classification(level=resource.get("classification", {}).get("level", "CUI")),
+            idempotencyKey=(
+                f"{decision.get('policyId')}:{subject.get('subjectId')}:"
+                f"{entry.get('action')}:{resource.get('id')}"
+            ),
+            payload={
+                "decision": decision.get("decision"),
+                "action": entry.get("action"),
+                "resource": resource,
+                "policyId": decision.get("policyId"),
+                "policyVersion": decision.get("policyVersion"),
+                "obligations": decision.get("obligations", []),
+                "reason": decision.get("reason", ""),
+                "enforcementPoint": entry.get("enforcementPoint"),
+            },
+        )
+
+        fabric_url = settings.fabric_url
+        if fabric_url:
+            import httpx
+
+            async with httpx.AsyncClient(timeout=5.0) as client:
+                await client.post(f"{fabric_url}/v1/events", json={"events": [event.to_logical_json()]})
+        else:
+            from ngsh_core.eventlog import EventLog
+
+            EventLog(request.app.state.executor).append(event)
+    except Exception:
+        # A failure to publish must not change the decision that was
+        # returned to the caller. It is logged rather than swallowed,
+        # because a decision that is in the ledger but not in the event
+        # log is a finding that the cross-check must report.
+        logger.exception("failed to publish the access decision event")
         return
 
 
@@ -203,15 +276,29 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         ],
     )
     app.state.policy_set = policy_set
+    app.state.executor = open_database(resolved.dsn)
 
     # In single-process development mode the audit ledger lives in the same
     # database. In a deployed topology the audit service is remote and the
     # decision is written over HTTP instead.
     if not resolved.audit_url:
         from ngsh_core.audit import AuditLedger
-        from ngsh_core.store import open_database
 
-        app.state.ledger = AuditLedger(open_database(resolved.dsn))
+        app.state.ledger = AuditLedger(app.state.executor)
+
+    def decision_sequence(aggregate_id: str) -> int:
+        """The next sequence for a decision aggregate.
+
+        Access decisions are a stream in their own right: the log's
+        per-aggregate sequencing does not apply to them, because they are
+        not the history of one resource but the record of every attempt to
+        reach it. Each resource therefore has its own decision aggregate.
+        """
+        from ngsh_core.eventlog import EventLog
+
+        return EventLog(app.state.executor).next_sequence(aggregate_id)
+
+    app.state.decision_sequence = decision_sequence
 
     return app
 

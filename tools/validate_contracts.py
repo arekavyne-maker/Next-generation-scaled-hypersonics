@@ -215,6 +215,21 @@ def validate_event_catalog() -> None:
             )
 
 
+def validate_audit_contract() -> None:
+    """The audit ledger's entry shape is a contract, not prose."""
+    path = CONTRACTS / "audit" / "ledger-entry.schema.json"
+    check(path.exists(), "the audit ledger contract is missing")
+
+    if path.exists():
+        document = load(path)
+        required = {"eventType", "body", "subject", "action", "resource", "decision"}
+        missing = required - set(document.get("properties", {}))
+        check(
+            not missing,
+            f"the audit ledger contract omits the fields {sorted(missing)}",
+        )
+
+
 def validate_policy_document() -> None:
     """The policy document is well formed and its obligations are defined."""
     policy = load(CONTRACTS / "policy" / "access-policy.json")
@@ -265,6 +280,7 @@ def main() -> int:
     validate_schemas()
     validate_registry()
     validate_event_catalog()
+    validate_audit_contract()
     validate_policy_document()
     validate_python_bindings()
 

@@ -234,13 +234,15 @@ class EdgeQueue:
 
     def _next_aggregate_sequence(self, aggregate_id: str) -> int:
         row = self._conn.execute(
-            "SELECT last_local_seq FROM edge_local_sequence WHERE aggregate_id = ?", (aggregate_id,)
+            "SELECT last_local_seq FROM edge_local_sequence WHERE aggregate_id = ?",
+            (aggregate_id,),
         ).fetchone()
         return int(row["last_local_seq"]) + 1 if row else 1
 
     def _branch_point(self, aggregate_id: str) -> int:
         row = self._conn.execute(
-            "SELECT last_known_fabric_seq FROM edge_branch WHERE aggregate_id = ?", (aggregate_id,)
+            "SELECT last_known_fabric_seq FROM edge_branch WHERE aggregate_id = ?",
+            (aggregate_id,),
         ).fetchone()
         return int(row["last_known_fabric_seq"]) if row else 0
 
@@ -281,7 +283,10 @@ class EdgeQueue:
                     "priority-then-age policy"
                 ),
             )
-            self._conn.execute("DELETE FROM edge_queue WHERE local_sequence = ?", (row["local_sequence"],))
+            self._conn.execute(
+                "DELETE FROM edge_queue WHERE local_sequence = ?",
+                (row["local_sequence"],),
+            )
             self._conn.execute(
                 "INSERT OR REPLACE INTO edge_drops (event_id, body_json) VALUES (?, ?)",
                 (dropped.eventId, canonical_json(dropped.to_dict())),

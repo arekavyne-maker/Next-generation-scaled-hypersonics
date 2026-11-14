@@ -85,6 +85,14 @@ class Settings:
     policy_file: str = field(
         default_factory=lambda: _env("NGSH_POLICY_FILE", "contracts/policy/access-policy.json")
     )
+    #: Identifies this service as the enforcement point that produced a
+    #: decision. Recorded in the ledger and in the event so the trail shows
+    #: where a decision was made, not merely that one was (ADR-0004).
+    enforcement_point: str = field(
+        default_factory=lambda: _env(
+            "NGSH_ENFORCEMENT_POINT", f"{_env('NGSH_SERVICE_NAME', 'ngsh-service')}/pep"
+        )
+    )
     policy_version: str = field(default_factory=lambda: _env("NGSH_POLICY_VERSION", "1.0.0"))
 
     # Audit ledger.

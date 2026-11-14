@@ -34,7 +34,8 @@
 -- store and rotate it; see deploy/helm/ngsh/values.yaml (secrets.*).
 -- =============================================================================
 
-\set ON_ERROR_STOP on
+-- This file is plain SQL: the postgres entrypoint runs it with
+-- `psql -v ON_ERROR_STOP=1`, so a failing statement aborts the bootstrap.
 
 -- -----------------------------------------------------------------------------
 -- 1. Extensions

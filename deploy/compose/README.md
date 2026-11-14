@@ -28,10 +28,8 @@ enclave, or a disconnected edge annex.
 * Docker Engine with the **Compose v2 plugin, v2.24.0 or newer**.
   v2.24 is the first release that supports the long-form `env_file` entry
   (`path:` / `required:`) used here.
-* Python 3.11+ is not required to run the stack, but the service images are
-  expected to be Python-based.
-* Nothing else. There is no dependency on Neo4j, JanusGraph, Docker-in-Docker,
-  or any managed cloud service.
+* Nothing else. There is no dependency on Neo4j, JanusGraph,
+  Docker-in-Docker, or any managed cloud service.
 
 ---
 
@@ -53,9 +51,10 @@ docker compose ps
 docker compose logs -f fabric-service
 ```
 
-The stack starts in dependency order. `fabric-service` waits for Postgres,
-`ontology-service` waits for `fabric-service`, and so on — every edge of the
-graph is a real `condition: service_healthy` dependency, not a sleep.
+The stack starts in dependency order. `init-data` hands the named volumes to
+the service uid and exits; the services then wait for Postgres and for each
+other. Every edge of the service graph is a real
+`condition: service_healthy` dependency, not a sleep.
 
 To start only the platform (no console, no collector):
 
@@ -64,7 +63,7 @@ docker compose up -d postgres fabric-service ontology-service policy-service \
                     audit-service thread-service ingest-service
 ```
 
-To include the disconnected edge annex (see §8):
+To include the disconnected edge annex (see §9):
 
 ```bash
 docker compose --profile edge up -d
@@ -77,7 +76,7 @@ Every service exposes two endpoints, both returning `200` with a JSON body:
 | Endpoint | Meaning | Used by |
 |---|---|---|
 | `GET /healthz` | Liveness — the process is up and the event loop is responsive | Compose healthcheck, Kubernetes liveness/startup probe, Helm test pod |
-| `GET /readyz` | Readiness — dependencies are reachable and the service can serve traffic | Kubernetes readiness probe, load balancer gating |
+| `GET /readyz` | Readiness — dependencies are reachable and the service can serve traffic | Kubernetes readiness probe, load-balancer gating |
 
 Example:
 
@@ -86,9 +85,8 @@ curl -fsS http://localhost:8082/healthz
 # {"status":"ok","service":"fabric-service","profile":"local", ...}
 ```
 
-If a service image does not ship `wget` **or** `curl`, its Compose healthcheck
-will fail. That is a deliberate contract, not a convenience: the image contract
-is documented at the top of `docker-compose.yml`.
+The service images ship `curl`, which the healthchecks use. The console image
+ships `wget` (busybox in the nginx image).
 
 ---
 
@@ -103,15 +101,16 @@ docker compose rm -f           # remove orphaned containers
 
 Named volumes that survive a plain `down`:
 
-`ngsh-pgdata`, `ngsh-fabric-data`, `ngsh-ontology-data`, `ngsh-audit-data`,
+`ngsh-data` (the shared platform database), `ngsh-pgdata`,
+`ngsh-fabric-data`, `ngsh-ontology-data`, `ngsh-audit-data`,
 `ngsh-graph-data`, `ngsh-ingest-data` and the `ngsh-edge-*` set.
 
 To start from a clean database without deleting everything else, drop the
-Postgres volume only:
+platform volume only:
 
 ```bash
 docker compose down
-docker volume rm ngsh-pgdata
+docker volume rm ngsh-data
 docker compose up -d
 ```
 
@@ -140,7 +139,61 @@ only from inside the Compose network.
 
 ---
 
-## 6. Configuration
+## 6. Storage
+
+### The local default is SQLite on a shared volume
+
+All six services mount the `ngsh-data` volume at `/var/lib/ngsh/platform` and
+open the same SQLite database:
+
+```
+NGSH_DSN=sqlite:////var/lib/ngsh/platform/ngsh.db
+```
+
+This is the platform's documented single-process development mode, reproduced
+across containers: the SQLite executor enables WAL journalling and a busy
+timeout specifically so that several services can share one file. It is
+**development-only**. The PostgreSQL service is the platform's target
+relational store and is provisioned in parallel (see below).
+
+### Postgres is provisioned and ready
+
+The `postgres` service runs `postgres:16-alpine` and executes
+`postgres/init.sql` on first start, which creates the five foundation schemas
+(`ontology`, `fabric`, `audit`, `graph`, `ingest`), the runtime roles
+(`ngsh_admin`, `ngsh_app`, `ngsh_readonly`) and the `pgcrypto`, `pg_trgm` and
+`btree_gin` extensions.
+
+Switching the platform onto it is a single environment variable:
+
+```bash
+NGSH_DSN="postgresql://ngsh_app:ngsh-dev-placeholder@postgres:5432/ngsh" \
+  docker compose up -d
+```
+
+Both `NGSH_DSN` and `DATABASE_URL` are set to that value, because the
+platform's configuration layer reads the first of the two that is present.
+
+> The scheme is `postgresql://`, not `postgres://` — the platform's SQL driver
+> accepts only the long form.
+>
+> The `ngsh-dev-placeholder` password matches the placeholder that
+> `postgres/init.sql` assigns to the `ngsh_app` role. Both are local
+> development placeholders, not credentials for anything real.
+
+### Volume ownership
+
+The service images run as uid/gid **65532**, while Docker creates named
+volumes owned by root. The one-shot `init-data` container runs as root,
+`chown`s every named volume to 65532:65532, and exits. It is not in the
+request path and never serves traffic.
+
+If you add a new named volume, mount it into `init-data` as well, or the
+services will not be able to write to it.
+
+---
+
+## 7. Configuration
 
 Three sources, in precedence order (later wins inside a service):
 
@@ -152,10 +205,11 @@ Three sources, in precedence order (later wins inside a service):
    `${VAR:-default}` in `docker-compose.yml` is resolved from the shell
    environment first, then this file, then the default.
 3. **`environment:` in `docker-compose.yml`** — structural values only: ports,
-   in-cluster service URLs, OTel resource attributes, the database URL.
+   in-cluster service URLs, OTel resource attributes, the DSN.
 
 `environment:` wins over `env_file:` for the same key, so the structural
-values above are deterministic across services.
+values above are deterministic across services — and the shared example file
+cannot silently redirect the stack to a different store.
 
 Key variables:
 
@@ -166,50 +220,57 @@ Key variables:
 | `NGSH_DEPLOYMENT_ZONE` | `local-dev` | Zone label carried in telemetry |
 | `NGSH_CLASSIFICATION_LEVEL` | `UNCLASSIFIED` | Highest handling caveat of the zone |
 | `NGSH_TENANT` | `ngsh-local` | Tenant key; every query is tenant-scoped |
+| `NGSH_HOST` | `0.0.0.0` | Listen address |
+| `NGSH_PORT` / `PORT` | per service | Listen port. Both are set to the same value. |
+| `NGSH_DSN` / `DATABASE_URL` | SQLite on `ngsh-data` | Storage DSN. The first one set wins. |
+| `NGSH_IDENTITY_PROVIDER` | `stub` | `stub` (development actor) or `piv` (federation) |
 | `NGSH_GRAPH_BACKEND` | `postgres` | `postgres` \| `neptune` \| `janusgraph` |
 | `NGSH_GRAPH_URL` | `postgresql://postgres:5432/ngsh` | Graph adapter endpoint |
+| `NGSH_FABRIC_URL` etc. | per service | In-cluster service URLs |
 | `OTEL_EXPORTER_OTLP_ENDPOINT` | `http://otel-collector:4317` | Where traces/metrics/logs go |
-| `POSTGRES_APP_USER` / `POSTGRES_APP_PASSWORD` | `ngsh_app` / `ngsh-dev-placeholder` | Runtime DB role. **Placeholder — local development only.** |
 | `POSTGRES_SUPERUSER` / `POSTGRES_SUPERUSER_PASSWORD` | `ngsh_root` / `ngsh-dev-placeholder` | Bootstrap superuser. **Placeholder — local development only.** |
 
-> The `*-dev-placeholder` passwords are literal development placeholders. They
-> are not credentials for anything real. In a Helm deployment the application
-> password comes from `values.secrets` (see `deploy/helm/ngsh/README.md`).
+> The `stub` identity provider is a development actor with no credential
+> requirement. The platform **refuses** it outside the `local` and `edge`
+> deployment profiles, so this topology always runs in one of those two.
 
 ---
 
-## 7. Seeding data
+## 8. Seeding data
 
-The schemas exist after the first `up`; the *domain tables* are created by the
-application migrations that ship with each service, and the event log is
-populated by ingesting events.
+In the local topology the services share one SQLite database, so seeding is a
+direct write through the platform's own API — there is no separate migration
+step to run first. The domain schema is created by the services themselves on
+first start.
 
 ```bash
-# 1. Confirm the schemas and roles landed.
+# 1. Confirm the services are up.
+docker compose ps
+curl -fsS http://localhost:8082/healthz
+curl -fsS http://localhost:8082/v1/service/info
+
+# 2. Confirm the Postgres schemas and roles landed.
 docker compose exec postgres psql -U ngsh_root -d ngsh -c '\dn'
 #  ontology | fabric | audit | graph | ingest
 
 docker compose exec postgres psql -U ngsh_root -d ngsh -c '\du'
 #  ngsh_admin | ngsh_app | ngsh_readonly
 
-# 2. Run the application migrations (whatever the service teams ship —
-#     Alembic, Django, Flyway, …). They own the domain tables.
-
 # 3. Seed by ingesting events, not by inserting rows.
 #    The fabric is the system of record; every other store is a projection.
-curl -fsS -X POST http://localhost:8086/ingest/batches \
+#
+#    POST /v1/events accepts either a single envelope or {"events": [...]}.
+#    The envelope rejects unknown fields, and the service fills in the
+#    event id and timestamps when they are omitted.
+curl -fsS -X POST http://localhost:8082/v1/events \
   -H 'content-type: application/json' \
-  -H 'x-tenant: ngsh-local' \
   -d '{
-        "source": "seed-script",
         "events": [
           {
             "eventType": "entity.created",
-            "eventVersion": 1,
             "aggregateType": "System",
             "aggregateId": "SYS:SEED-0001",
             "sequence": 1,
-            "occurredAt": "2026-01-01T00:00:00Z",
             "tenant": "ngsh-local",
             "actor": {"subjectId": "PER:SEED", "kind": "service"},
             "classification": {"level": "UNCLASSIFIED"},
@@ -218,19 +279,35 @@ curl -fsS -X POST http://localhost:8086/ingest/batches \
         ]
       }'
 
-# 4. Watch the projections rebuild.
+#    Or admit a raw batch and let the ingest service publish the events:
+curl -fsS -X POST http://localhost:8086/v1/ingest \
+  -H 'content-type: application/json' \
+  -d '{
+        "source": "seed-script",
+        "format": "NDJSON",
+        "payload": "{\"type\":\"System\",\"id\":\"SYS:SEED-0002\",\"name\":\"Seed system 2\"}\n"
+      }'
+
+# 4. Read the log back.
+curl -fsS http://localhost:8082/v1/events
+curl -fsS http://localhost:8082/v1/stats
+
+# 5. Watch the projections rebuild.
 docker compose logs -f fabric-service thread-service ontology-service
 ```
 
 Every event must satisfy `contracts/events/event-envelope.schema.json`; the
-ingest service rejects malformed envelopes at the boundary.
+fabric rejects malformed envelopes at the boundary. The tenant is part of the
+envelope, and the services default it from `NGSH_TENANT`.
 
 ---
 
-## 8. Graph store: local stand-in and the path to Neptune/JanusGraph
+## 9. Graph store: local stand-in and the path to Neptune/JanusGraph
 
-**Local development uses PostgreSQL as a graph stand-in.** The `graph` schema
-holds the property-graph projection (nodes and edges as tables). This is
+**Local development uses the platform's relational store as a graph
+stand-in.** The `graph` schema holds the property-graph projection (nodes and
+edges as tables) — in the shared SQLite database locally, and in the
+`graph` schema of PostgreSQL once the stack is pointed at it. This is
 deliberate:
 
 * No Docker-in-Docker, no extra privileged container, no second database to
@@ -257,8 +334,8 @@ deliberate:
    ```
 
 4. Backfill by replaying the event log into the new backend. Because the graph
-   is a projection, the backfill is idempotent and does not require a migration
-   window on the fabric.
+   is a projection, the backfill is idempotent and does not require a
+   migration window on the fabric.
 5. Switch reads, verify, then retire the PostgreSQL graph tables.
 
 The commented-out `graph:` block in `docker-compose.yml` shows the shape an
@@ -266,7 +343,7 @@ in-cluster graph engine would take, with no provider-specific fields.
 
 ---
 
-## 9. The edge annex profile
+## 10. The edge annex profile
 
 ```bash
 docker compose --profile edge up -d
@@ -282,18 +359,19 @@ between an edge annex and the central fabric is a sanctioned store-and-forward
 transfer performed by operations — see `deploy/README.md`, "Data flows between
 zones".
 
-Edge services are flagged with `NGSH_EDGE_MODE=true` and
-`NGSH_EDGE_NODE_ID=<node>` so the application can stamp the `edge` block of
-the event envelope (`nodeId`, `capturedAt`, `reconciledAt`, `clockSkewMs`).
+The edge services run with `NGSH_DEPLOYMENT_PROFILE=edge` and their own store
+on the `ngsh-edge-data` volume. They never point at the central fabric's
+database.
 
 ---
 
-## 10. Troubleshooting
+## 11. Troubleshooting
 
 | Symptom | Cause | Fix |
 |---|---|---|
 | `env_file ... required` error | Compose older than v2.24 | Upgrade the Compose plugin, or remove the `env_file` block |
-| Service never becomes healthy | Image has no `wget`/`curl` | Add one to the image, or override the healthcheck |
+| Service never becomes healthy | Image has no `curl`/`wget` | Add one to the image, or override the healthcheck |
+| `Permission denied` writing the database | A new volume was not mounted into `init-data` | Mount it there so the chown covers it |
 | `connection refused` on 8082 | Postgres still initialising | `docker compose logs postgres`; the first start runs `init.sql` |
 | Console shows the placeholder page | `apps/web/dist` absent | `cd apps/web && npm ci && npm run build`, then rebuild the image |
 | OTel exporter errors | `OTEL_EXPORTER_OTLP_ENDPOINT` points nowhere | Point it at a real OTLP backend, or leave it unset to use the debug exporter |
@@ -304,6 +382,12 @@ Diagnostics:
 ```bash
 docker compose ps
 docker compose logs --tail=100 fabric-service
-docker compose exec postgres psql -U ngsh_root -d ngsh -c '\dt fabric.*'
+docker compose exec postgres psql -U ngsh_root -d ngsh -c '\dn'
+docker compose exec postgres psql -U ngsh_root -d ngsh -c '\dt'
 docker compose exec postgres psql -U ngsh_root -d ngsh -c 'SELECT count(*) FROM fabric.event_log;'
 ```
+
+> The last query assumes the PostgreSQL executor has landed and the
+> application migrations have created the domain tables in PostgreSQL. In the
+> default (SQLite) topology the event log lives in the shared platform
+> database instead; query it through the fabric's own API.

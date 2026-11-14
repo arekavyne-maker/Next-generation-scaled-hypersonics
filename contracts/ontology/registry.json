@@ -1,50 +1,509 @@
 {
   "ontologyVersion": "1.0.0",
   "entities": [
-    { "type": "System", "idPrefix": "SYS", "schemaDef": "#/$defs/SystemAttributes", "description": "Any engineered system of interest, at any level of the digital thread.", "pillars": ["A", "F", "G", "FOUNDATION"], "classificationFloor": "CUI", "pii": false },
-    { "type": "Variant", "idPrefix": "VAR", "schemaDef": "#/$defs/VariantAttributes", "description": "A configuration-specific instance of a System; the unit of family-of-systems generation (PSDD A-2).", "pillars": ["A"], "classificationFloor": "CUI", "pii": false },
-    { "type": "Subsystem", "idPrefix": "SUB", "schemaDef": "#/$defs/SubsystemAttributes", "description": "Decomposition node beneath a System.", "pillars": ["A"], "classificationFloor": "CUI", "pii": false },
-    { "type": "Part", "idPrefix": "PART", "schemaDef": "#/$defs/PartAttributes", "description": "A discrete hardware article.", "pillars": ["A", "B", "D", "H"], "classificationFloor": "CUI", "pii": false },
-    { "type": "Material", "idPrefix": "MAT", "schemaDef": "#/$defs/MaterialAttributes", "description": "CMC lot, prepreg batch or billet. The join point between strike-side materials and shield-side supply-chain risk.", "pillars": ["B", "D"], "classificationFloor": "CUI", "pii": false },
-    { "type": "ProcessPlan", "idPrefix": "PP", "schemaDef": "#/$defs/ProcessPlanAttributes", "description": "Qualified recipe for producing a Part from Material.", "pillars": ["B"], "classificationFloor": "CUI", "pii": false },
-    { "type": "ProcessRun", "idPrefix": "PR", "schemaDef": "#/$defs/ProcessRunAttributes", "description": "A single execution of a ProcessPlan against a Material lot.", "pillars": ["B"], "classificationFloor": "CUI", "pii": false },
-    { "type": "TestArticle", "idPrefix": "TA", "schemaDef": "#/$defs/TestArticleAttributes", "description": "As-built configuration subject to test.", "pillars": ["B", "C", "G"], "classificationFloor": "CUI", "pii": false },
-    { "type": "TestCampaign", "idPrefix": "TC", "schemaDef": "#/$defs/TestCampaignAttributes", "description": "A planned, coordinated body of tests against one or more articles.", "pillars": ["C", "G"], "classificationFloor": "CUI", "pii": false },
-    { "type": "TestResult", "idPrefix": "TR", "schemaDef": "#/$defs/TestResultAttributes", "description": "Outcome of a test, with full configuration context. Immutable once recorded (PSDD 6.3).", "pillars": ["C", "G", "A"], "classificationFloor": "CUI", "pii": false },
-    { "type": "Requirement", "idPrefix": "REQ", "schemaDef": "#/$defs/RequirementAttributes", "description": "A baselined engineering requirement; the root of the verification chain.", "pillars": ["A", "E", "F"], "classificationFloor": "CUI", "pii": false },
-    { "type": "Interface", "idPrefix": "IF", "schemaDef": "#/$defs/InterfaceAttributes", "description": "Controlled interface between two systems, versioned by ICD.", "pillars": ["A", "F"], "classificationFloor": "CUI", "pii": false },
-    { "type": "Model", "idPrefix": "MDL", "schemaDef": "#/$defs/ModelAttributes", "description": "A simulation or ML model with provenance and a fidelity score (PSDD G-4).", "pillars": ["B", "C", "F", "G", "H"], "classificationFloor": "CUI", "pii": false },
-    { "type": "ThreatSystem", "idPrefix": "THR", "schemaDef": "#/$defs/ThreatSystemAttributes", "description": "An adversarial system reconstructed from observations; versioned and confidence-scored.", "pillars": ["F"], "classificationFloor": "RESTRICTED", "pii": false },
-    { "type": "ThreatObservation", "idPrefix": "TOBS", "schemaDef": "#/$defs/ThreatObservationAttributes", "description": "A single sensor observation of a threat system.", "pillars": ["F"], "classificationFloor": "RESTRICTED", "pii": false },
-    { "type": "EngagementScenario", "idPrefix": "ESC", "schemaDef": "#/$defs/EngagementScenarioAttributes", "description": "A composed detect-to-engage scenario for simulation and analysis.", "pillars": ["F"], "classificationFloor": "RESTRICTED", "pii": false },
-    { "type": "Supplier", "idPrefix": "SUP", "schemaDef": "#/$defs/SupplierAttributes", "description": "An external or internal supply node, scored for risk and dependency.", "pillars": ["D", "H"], "classificationFloor": "CUI", "pii": false },
-    { "type": "PartProvenance", "idPrefix": "PROV", "schemaDef": "#/$defs/PartProvenanceAttributes", "description": "Chain-of-custody record for a Part across facilities and transfers.", "pillars": ["D", "B"], "classificationFloor": "CUI", "pii": false },
-    { "type": "Skill", "idPrefix": "SKL", "schemaDef": "#/$defs/SkillAttributes", "description": "A defined occupational or technical skill.", "pillars": ["E", "B"], "classificationFloor": "UNCLASSIFIED", "pii": false },
-    { "type": "Credential", "idPrefix": "CRD", "schemaDef": "#/$defs/CredentialAttributes", "description": "Evidence that a Person holds a Skill, with expiry and authority.", "pillars": ["E"], "classificationFloor": "CUI", "pii": true },
-    { "type": "Person", "idPrefix": "PER", "schemaDef": "#/$defs/PersonAttributes", "description": "A cleared individual; PII-bearing, so subject to strict retention.", "pillars": ["E"], "classificationFloor": "CUI", "pii": true },
-    { "type": "Facility", "idPrefix": "FAC", "schemaDef": "#/$defs/FacilityAttributes", "description": "A manufacturing, test, range or training site with surge capability.", "pillars": ["B", "D", "E", "G", "H"], "classificationFloor": "CUI", "pii": false },
-    { "type": "RangeSlot", "idPrefix": "RS", "schemaDef": "#/$defs/RangeSlotAttributes", "description": "A bookable window of range capacity with instrumentation coverage.", "pillars": ["C", "G"], "classificationFloor": "CUI", "pii": false }
+    {
+      "type": "System",
+      "idPrefix": "SYS",
+      "schemaDef": "#/$defs/SystemAttributes",
+      "description": "Any engineered system of interest, at any level of the digital thread.",
+      "pillars": [
+        "A",
+        "F",
+        "G",
+        "FOUNDATION"
+      ],
+      "classificationFloor": "CUI",
+      "pii": false
+    },
+    {
+      "type": "Variant",
+      "idPrefix": "VAR",
+      "schemaDef": "#/$defs/VariantAttributes",
+      "description": "A configuration-specific instance of a System; the unit of family-of-systems generation (PSDD A-2).",
+      "pillars": [
+        "A"
+      ],
+      "classificationFloor": "CUI",
+      "pii": false
+    },
+    {
+      "type": "Subsystem",
+      "idPrefix": "SUB",
+      "schemaDef": "#/$defs/SubsystemAttributes",
+      "description": "Decomposition node beneath a System.",
+      "pillars": [
+        "A"
+      ],
+      "classificationFloor": "CUI",
+      "pii": false
+    },
+    {
+      "type": "Part",
+      "idPrefix": "PART",
+      "schemaDef": "#/$defs/PartAttributes",
+      "description": "A discrete hardware article.",
+      "pillars": [
+        "A",
+        "B",
+        "D",
+        "H"
+      ],
+      "classificationFloor": "CUI",
+      "pii": false
+    },
+    {
+      "type": "Material",
+      "idPrefix": "MAT",
+      "schemaDef": "#/$defs/MaterialAttributes",
+      "description": "CMC lot, prepreg batch or billet. The join point between strike-side materials and shield-side supply-chain risk.",
+      "pillars": [
+        "B",
+        "D"
+      ],
+      "classificationFloor": "CUI",
+      "pii": false
+    },
+    {
+      "type": "ProcessPlan",
+      "idPrefix": "PP",
+      "schemaDef": "#/$defs/ProcessPlanAttributes",
+      "description": "Qualified recipe for producing a Part from Material.",
+      "pillars": [
+        "B"
+      ],
+      "classificationFloor": "CUI",
+      "pii": false
+    },
+    {
+      "type": "ProcessRun",
+      "idPrefix": "PR",
+      "schemaDef": "#/$defs/ProcessRunAttributes",
+      "description": "A single execution of a ProcessPlan against a Material lot.",
+      "pillars": [
+        "B"
+      ],
+      "classificationFloor": "CUI",
+      "pii": false
+    },
+    {
+      "type": "TestArticle",
+      "idPrefix": "TA",
+      "schemaDef": "#/$defs/TestArticleAttributes",
+      "description": "As-built configuration subject to test.",
+      "pillars": [
+        "B",
+        "C",
+        "G"
+      ],
+      "classificationFloor": "CUI",
+      "pii": false
+    },
+    {
+      "type": "TestCampaign",
+      "idPrefix": "TC",
+      "schemaDef": "#/$defs/TestCampaignAttributes",
+      "description": "A planned, coordinated body of tests against one or more articles.",
+      "pillars": [
+        "C",
+        "G"
+      ],
+      "classificationFloor": "CUI",
+      "pii": false
+    },
+    {
+      "type": "TestResult",
+      "idPrefix": "TR",
+      "schemaDef": "#/$defs/TestResultAttributes",
+      "description": "Outcome of a test, with full configuration context. Immutable once recorded (PSDD 6.3).",
+      "pillars": [
+        "C",
+        "G",
+        "A"
+      ],
+      "classificationFloor": "CUI",
+      "pii": false
+    },
+    {
+      "type": "Requirement",
+      "idPrefix": "REQ",
+      "schemaDef": "#/$defs/RequirementAttributes",
+      "description": "A baselined engineering requirement; the root of the verification chain.",
+      "pillars": [
+        "A",
+        "E",
+        "F"
+      ],
+      "classificationFloor": "CUI",
+      "pii": false
+    },
+    {
+      "type": "Interface",
+      "idPrefix": "IFC",
+      "schemaDef": "#/$defs/InterfaceAttributes",
+      "description": "Controlled interface between two systems, versioned by ICD.",
+      "pillars": [
+        "A",
+        "F"
+      ],
+      "classificationFloor": "CUI",
+      "pii": false
+    },
+    {
+      "type": "Model",
+      "idPrefix": "MDL",
+      "schemaDef": "#/$defs/ModelAttributes",
+      "description": "A simulation or ML model with provenance and a fidelity score (PSDD G-4).",
+      "pillars": [
+        "B",
+        "C",
+        "F",
+        "G",
+        "H"
+      ],
+      "classificationFloor": "CUI",
+      "pii": false
+    },
+    {
+      "type": "ThreatSystem",
+      "idPrefix": "THR",
+      "schemaDef": "#/$defs/ThreatSystemAttributes",
+      "description": "An adversarial system reconstructed from observations; versioned and confidence-scored.",
+      "pillars": [
+        "F"
+      ],
+      "classificationFloor": "RESTRICTED",
+      "pii": false
+    },
+    {
+      "type": "ThreatObservation",
+      "idPrefix": "TOBS",
+      "schemaDef": "#/$defs/ThreatObservationAttributes",
+      "description": "A single sensor observation of a threat system.",
+      "pillars": [
+        "F"
+      ],
+      "classificationFloor": "RESTRICTED",
+      "pii": false
+    },
+    {
+      "type": "EngagementScenario",
+      "idPrefix": "ESC",
+      "schemaDef": "#/$defs/EngagementScenarioAttributes",
+      "description": "A composed detect-to-engage scenario for simulation and analysis.",
+      "pillars": [
+        "F"
+      ],
+      "classificationFloor": "RESTRICTED",
+      "pii": false
+    },
+    {
+      "type": "Supplier",
+      "idPrefix": "SUP",
+      "schemaDef": "#/$defs/SupplierAttributes",
+      "description": "An external or internal supply node, scored for risk and dependency.",
+      "pillars": [
+        "D",
+        "H"
+      ],
+      "classificationFloor": "CUI",
+      "pii": false
+    },
+    {
+      "type": "PartProvenance",
+      "idPrefix": "PROV",
+      "schemaDef": "#/$defs/PartProvenanceAttributes",
+      "description": "Chain-of-custody record for a Part across facilities and transfers.",
+      "pillars": [
+        "D",
+        "B"
+      ],
+      "classificationFloor": "CUI",
+      "pii": false
+    },
+    {
+      "type": "Skill",
+      "idPrefix": "SKL",
+      "schemaDef": "#/$defs/SkillAttributes",
+      "description": "A defined occupational or technical skill.",
+      "pillars": [
+        "E",
+        "B"
+      ],
+      "classificationFloor": "UNCLASSIFIED",
+      "pii": false
+    },
+    {
+      "type": "Credential",
+      "idPrefix": "CRD",
+      "schemaDef": "#/$defs/CredentialAttributes",
+      "description": "Evidence that a Person holds a Skill, with expiry and authority.",
+      "pillars": [
+        "E"
+      ],
+      "classificationFloor": "CUI",
+      "pii": true
+    },
+    {
+      "type": "Person",
+      "idPrefix": "PER",
+      "schemaDef": "#/$defs/PersonAttributes",
+      "description": "A cleared individual; PII-bearing, so subject to strict retention.",
+      "pillars": [
+        "B",
+        "E"
+      ],
+      "classificationFloor": "CUI",
+      "pii": true
+    },
+    {
+      "type": "Facility",
+      "idPrefix": "FAC",
+      "schemaDef": "#/$defs/FacilityAttributes",
+      "description": "A manufacturing, test, range or training site with surge capability.",
+      "pillars": [
+        "B",
+        "D",
+        "E",
+        "G",
+        "H"
+      ],
+      "classificationFloor": "CUI",
+      "pii": false
+    },
+    {
+      "type": "RangeSlot",
+      "idPrefix": "RS",
+      "schemaDef": "#/$defs/RangeSlotAttributes",
+      "description": "A bookable window of range capacity with instrumentation coverage.",
+      "pillars": [
+        "C",
+        "G"
+      ],
+      "classificationFloor": "CUI",
+      "pii": false
+    }
   ],
   "relations": [
-    { "type": "satisfies", "fromTypes": ["Part", "Variant", "Subsystem", "Model", "System"], "toTypes": ["Requirement"], "cardinality": "MANY_TO_MANY", "description": "A design element discharges a requirement.", "mayCrossClassification": false, "requiresProvenance": true, "supportsRollup": true },
-    { "type": "verifies", "fromTypes": ["TestResult", "TestCampaign"], "toTypes": ["Requirement"], "cardinality": "MANY_TO_MANY", "description": "Test evidence verifies a requirement (PSDD A-3).", "mayCrossClassification": false, "requiresProvenance": true, "supportsRollup": true },
-    { "type": "manufacturedBy", "fromTypes": ["Part", "Material"], "toTypes": ["Facility", "Supplier"], "cardinality": "MANY_TO_MANY", "description": "Article is produced at a facility or supplied by a supplier.", "mayCrossClassification": false, "requiresProvenance": true, "supportsRollup": false },
-    { "type": "characterizedBy", "fromTypes": ["Material", "ProcessRun", "Part"], "toTypes": ["Model", "TestResult"], "cardinality": "MANY_TO_MANY", "description": "Physics or ML characterisation of a material, run or part.", "mayCrossClassification": false, "requiresProvenance": true, "supportsRollup": true },
-    { "type": "derivedFrom", "fromTypes": ["Model", "ThreatSystem", "TestResult"], "toTypes": ["Model", "TestResult", "ThreatObservation"], "cardinality": "MANY_TO_MANY", "description": "Derivation lineage between models, results and reconstructions.", "mayCrossClassification": true, "requiresProvenance": true, "supportsRollup": true },
-    { "type": "threatens", "fromTypes": ["ThreatSystem"], "toTypes": ["System", "Facility", "Part"], "cardinality": "MANY_TO_MANY", "description": "Adversarial system poses a threat to a defended asset.", "mayCrossClassification": false, "requiresProvenance": true, "supportsRollup": false },
-    { "type": "engages", "fromTypes": ["EngagementScenario"], "toTypes": ["ThreatSystem"], "cardinality": "MANY_TO_MANY", "description": "Scenario exercises an engagement against a threat system.", "mayCrossClassification": false, "requiresProvenance": true, "supportsRollup": false },
-    { "type": "requiresSkill", "fromTypes": ["ProcessPlan", "TestCampaign", "Facility", "RangeSlot"], "toTypes": ["Skill"], "cardinality": "MANY_TO_MANY", "description": "Activity demands a skill; drives workforce gap analysis (PSDD E-4).", "mayCrossClassification": true, "requiresProvenance": false, "supportsRollup": false },
-    { "type": "supplies", "fromTypes": ["Supplier"], "toTypes": ["Part", "Facility", "Material"], "cardinality": "MANY_TO_MANY", "description": "Supplier provides a part, material or facility capability.", "mayCrossClassification": false, "requiresProvenance": true, "supportsRollup": false },
-    { "type": "reconstitutes", "fromTypes": ["Facility", "Supplier", "Part"], "toTypes": ["Part", "Facility", "Supplier"], "cardinality": "MANY_TO_MANY", "description": "Recovery path that restores a lost critical node (PSDD H-2).", "mayCrossClassification": false, "requiresProvenance": false, "supportsRollup": false }
+    {
+      "type": "satisfies",
+      "fromTypes": [
+        "Part",
+        "Variant",
+        "Subsystem",
+        "Model",
+        "System"
+      ],
+      "toTypes": [
+        "Requirement"
+      ],
+      "cardinality": "MANY_TO_MANY",
+      "description": "A design element discharges a requirement.",
+      "mayCrossClassification": false,
+      "requiresProvenance": true,
+      "supportsRollup": true
+    },
+    {
+      "type": "verifies",
+      "fromTypes": [
+        "TestResult",
+        "TestCampaign"
+      ],
+      "toTypes": [
+        "Requirement"
+      ],
+      "cardinality": "MANY_TO_MANY",
+      "description": "Test evidence verifies a requirement (PSDD A-3).",
+      "mayCrossClassification": false,
+      "requiresProvenance": true,
+      "supportsRollup": true
+    },
+    {
+      "type": "manufacturedBy",
+      "fromTypes": [
+        "Part",
+        "Material"
+      ],
+      "toTypes": [
+        "Facility",
+        "Supplier"
+      ],
+      "cardinality": "MANY_TO_MANY",
+      "description": "Article is produced at a facility or supplied by a supplier.",
+      "mayCrossClassification": false,
+      "requiresProvenance": true,
+      "supportsRollup": false
+    },
+    {
+      "type": "characterizedBy",
+      "fromTypes": [
+        "Material",
+        "ProcessRun",
+        "Part"
+      ],
+      "toTypes": [
+        "Model",
+        "TestResult"
+      ],
+      "cardinality": "MANY_TO_MANY",
+      "description": "Physics or ML characterisation of a material, run or part.",
+      "mayCrossClassification": false,
+      "requiresProvenance": true,
+      "supportsRollup": true
+    },
+    {
+      "type": "derivedFrom",
+      "fromTypes": [
+        "Model",
+        "ThreatSystem",
+        "TestResult"
+      ],
+      "toTypes": [
+        "Model",
+        "TestResult",
+        "ThreatObservation"
+      ],
+      "cardinality": "MANY_TO_MANY",
+      "description": "Derivation lineage between models, results and reconstructions.",
+      "mayCrossClassification": true,
+      "requiresProvenance": true,
+      "supportsRollup": true
+    },
+    {
+      "type": "threatens",
+      "fromTypes": [
+        "ThreatSystem"
+      ],
+      "toTypes": [
+        "System",
+        "Facility",
+        "Part"
+      ],
+      "cardinality": "MANY_TO_MANY",
+      "description": "Adversarial system poses a threat to a defended asset.",
+      "mayCrossClassification": false,
+      "requiresProvenance": true,
+      "supportsRollup": false
+    },
+    {
+      "type": "engages",
+      "fromTypes": [
+        "EngagementScenario"
+      ],
+      "toTypes": [
+        "ThreatSystem"
+      ],
+      "cardinality": "MANY_TO_MANY",
+      "description": "Scenario exercises an engagement against a threat system.",
+      "mayCrossClassification": false,
+      "requiresProvenance": true,
+      "supportsRollup": false
+    },
+    {
+      "type": "requiresSkill",
+      "fromTypes": [
+        "ProcessPlan",
+        "TestCampaign",
+        "Facility",
+        "RangeSlot"
+      ],
+      "toTypes": [
+        "Skill"
+      ],
+      "cardinality": "MANY_TO_MANY",
+      "description": "Activity demands a skill; drives workforce gap analysis (PSDD E-4).",
+      "mayCrossClassification": true,
+      "requiresProvenance": false,
+      "supportsRollup": false
+    },
+    {
+      "type": "supplies",
+      "fromTypes": [
+        "Supplier"
+      ],
+      "toTypes": [
+        "Part",
+        "Facility",
+        "Material"
+      ],
+      "cardinality": "MANY_TO_MANY",
+      "description": "Supplier provides a part, material or facility capability.",
+      "mayCrossClassification": false,
+      "requiresProvenance": true,
+      "supportsRollup": false
+    },
+    {
+      "type": "reconstitutes",
+      "fromTypes": [
+        "Facility",
+        "Supplier",
+        "Part"
+      ],
+      "toTypes": [
+        "Part",
+        "Facility",
+        "Supplier"
+      ],
+      "cardinality": "MANY_TO_MANY",
+      "description": "Recovery path that restores a lost critical node (PSDD H-2).",
+      "mayCrossClassification": false,
+      "requiresProvenance": false,
+      "supportsRollup": false
+    }
   ],
   "constraints": [
-    { "id": "C-001", "rule": "An entity's classification may never be lower than the classificationFloor of its type.", "severity": "ERROR", "scope": "write" },
-    { "id": "C-002", "rule": "A relation may not cross a classification boundary unless the relation type has mayCrossClassification=true.", "severity": "ERROR", "scope": "write" },
-    { "id": "C-003", "rule": "A TestResult is immutable once written; corrections are new events with a supersedesRef, never in-place edits.", "severity": "ERROR", "scope": "write" },
-    { "id": "C-004", "rule": "A Model used in a safety-relevant prediction must have approvedForUse=true and a non-null fidelity score.", "severity": "ERROR", "scope": "use" },
-    { "id": "C-005", "rule": "A Credential's personId must resolve to a Person whose citizenship permits the credentialed activity, and whose clearance is current at issue time.", "severity": "ERROR", "scope": "write" },
-    { "id": "C-006", "rule": "Every Person referenced by a Credential or ProcessRun.operatorId must have a non-expired clearance record at the time of reference.", "severity": "ERROR", "scope": "write" },
-    { "id": "C-007", "rule": "A Part with criticality=CRITICAL and isSingleSource=true must have at least one reconstitutes edge or be flagged as a program risk.", "severity": "WARNING", "scope": "post" },
-    { "id": "C-008", "rule": "An EngagementScenario referencing a ThreatSystem must not be readable by an actor whose clearance is below the scenario's classification.", "severity": "ERROR", "scope": "read" }
+    {
+      "id": "C-001",
+      "rule": "An entity's classification may never be lower than the classificationFloor of its type.",
+      "severity": "ERROR",
+      "scope": "write"
+    },
+    {
+      "id": "C-002",
+      "rule": "A relation may not cross a classification boundary unless the relation type has mayCrossClassification=true.",
+      "severity": "ERROR",
+      "scope": "write"
+    },
+    {
+      "id": "C-003",
+      "rule": "A TestResult is immutable once written; corrections are new events with a supersedesRef, never in-place edits.",
+      "severity": "ERROR",
+      "scope": "write"
+    },
+    {
+      "id": "C-004",
+      "rule": "A Model used in a safety-relevant prediction must have approvedForUse=true and a non-null fidelity score.",
+      "severity": "ERROR",
+      "scope": "use"
+    },
+    {
+      "id": "C-005",
+      "rule": "A Credential's personId must resolve to a Person whose citizenship permits the credentialed activity, and whose clearance is current at issue time.",
+      "severity": "ERROR",
+      "scope": "write"
+    },
+    {
+      "id": "C-006",
+      "rule": "Every Person referenced by a Credential or ProcessRun.operatorId must have a non-expired clearance record at the time of reference.",
+      "severity": "ERROR",
+      "scope": "write"
+    },
+    {
+      "id": "C-007",
+      "rule": "A Part with criticality=CRITICAL and isSingleSource=true must have at least one reconstitutes edge or be flagged as a program risk.",
+      "severity": "WARNING",
+      "scope": "post"
+    },
+    {
+      "id": "C-008",
+      "rule": "An EngagementScenario referencing a ThreatSystem must not be readable by an actor whose clearance is below the scenario's classification.",
+      "severity": "ERROR",
+      "scope": "read"
+    },
+    {
+      "id": "C-009",
+      "rule": "An entity's classification may not be lowered in place; a downgrade creates a new entity in a lower partition with derivedFromClassified=true and a parentRefs link to the original.",
+      "severity": "ERROR",
+      "scope": "write"
+    }
   ]
 }

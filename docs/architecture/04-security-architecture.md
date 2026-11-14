@@ -15,7 +15,7 @@ This document specifies the security architecture of the NGSH platform: the zero
 7. [Audit trail](#7-audit-trail)
 8. [Key management posture](#8-key-management-posture)
 9. [Trust boundary diagram](#9-trust-boundary-diagram)
-10. [Accreditation boundaries](#10-accredititation-boundaries)
+10. [Accreditation boundaries](#10-accreditation-boundaries)
 11. [SBOM and CMMC L2+ obligations](#11-sbom-and-cmmc-l2-obligations)
 12. [Security control matrix](#12-security-control-matrix)
 13. [Known gaps](#13-known-gaps)
@@ -149,13 +149,35 @@ The partitioning design is specified in full in [ADR-0007](../adr/ADR-0007-class
 | **P-S** | SECRET, TOP SECRET | Separate store instances | Z-3 (IL6 annex) |
 | **P-L** | Site-local, scoped to the site's accreditation | Per-site instances | Edge site |
 
+### What `RESTRICTED` means
+
+PSDD §6.3 and §10 speak of "CUI" and of "classified" but never enumerate the
+levels, so the contract layer's `RESTRICTED` level has no PSDD counterpart to
+check against. This is the reading the programme has adopted:
+
+**`RESTRICTED` is the IL6-annex level.** It is the level at which classified
+threat and fire-control data is held — the data PSDD §10 places in the "on-prem
+IL6 annex (classified threat data, fire-control data)" — and it sits between
+`CUI` and `SECRET` in the ordering because it marks the *accreditation
+boundary* rather than a national security classification level. It is the
+level the three threat types carry a floor at, because `ThreatSystem`,
+`ThreatObservation` and `EngagementScenario` are the entities that exist to
+carry that analysis.
+
+The practical consequence is the partition boundary: everything at `CUI` or
+below lives in the accredited cloud enclave (P-U, P-C), and everything at
+`RESTRICTED` or above lives in the segregated on-prem annex (P-R, P-S). If
+the programme office prefers the threat types to be floored at `SECRET`
+instead, the change is one line in `contracts/ontology/registry.json` and the
+partition table above; the enforcement mechanism does not change.
+
 ### Downgrade prevention
 
 | Layer | Control |
 |---|---|
 | Floor | C-001 — an entity's classification may never be below its type's `classificationFloor`. Enforced at append |
 | Placement | A record is physically written only into the partition matching its classification; the write credential for a partition cannot write elsewhere |
-| Monotonicity | A classification is never lowered in place. Lowering creates a **new entity** in a lower partition with `derivedFromClassified: true` and a `parentRefs` link to the original; the original stays put |
+| Monotonicity | **C-009** — a classification is never lowered in place. Lowering creates a **new entity** in a lower partition with `derivedFromClassified: true` and a `parentRefs` link to the original; the original stays put. Enforced by the ontology service on updates and by the reconciliation engine's classification gate on edge merges |
 | Boundary | C-002 — a relation may not cross a classification boundary unless its type is `mayCrossClassification: true`. Only `derivedFrom` and `requiresSkill` are |
 | Read | C-008 — an `EngagementScenario` is not readable below its classification |
 

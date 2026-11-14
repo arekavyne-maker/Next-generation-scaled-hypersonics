@@ -703,11 +703,49 @@ built on a foundation that is still moving is a pillar that is rebuilt.
 
 ---
 
-## 14. Document control
+## 14. Reconciliation decisions
+
+The contract layer was reviewed against the PSDD and the ADRs after the
+foundation was built. The items below were disagreements, and each is now
+resolved in the contract rather than left as an open question. They are
+recorded here because a reader comparing this plan with the PSDD will notice
+the differences.
+
+| Item | Decision | Where |
+|---|---|---|
+| `Interface` shared the `IF` id prefix with PSDD §7's `IF-1`..`IF-7` external interfaces | The entity prefix is `IFC` | `contracts/ontology/registry.json` |
+| `RESTRICTED` is a classification level the PSDD never enumerates | It is the IL6-annex level: the level at which classified threat and fire-control data is held. The storage partition boundary sits between `CUI` and `RESTRICTED`, which is why the threat types carry a `RESTRICTED` floor | `docs/architecture/04-security-architecture.md` |
+| `FOUNDATION` meant both the PSDD §4.1 foundation layer (Pillars A–D) and the foundation services | The catalog's `owner: FOUNDATION` denotes the services; the note is in the catalog itself | `contracts/events/catalog.json` |
+| Nothing stopped an entity's classification being lowered in place | Constraint **C-009** is declared and enforced, on updates and on edge merges | `contracts/ontology/registry.json`, `libs/ngsh-core/ngsh_core/ontology.py` |
+| The edge envelope could not distinguish a fast-forward from a duplicate | The `edge` block carries `localSequence` and `branchedFromSeq` | `contracts/events/event-envelope.schema.json` |
+| Reconciliation conflicts had no first-class representation | `reconcile.conflict.recorded` is a catalogued event | `contracts/events/catalog.json` |
+| The audit ledger's entry shape existed only in prose | It is a contract | `contracts/audit/ledger-entry.schema.json` |
+| An access decision did not record which enforcement point made it | `enforcementPoint` is on the event and the ledger entry | `contracts/events/access.decision.recorded.schema.json` |
+| Every access decision produced a ledger entry but not an event | Both are produced, and the cross-check is a release criterion (I0-4) | `services/policy-service/` |
+| `Person` was owned by Pillar E alone, but C-006 requires one for a `ProcessRun` | Pillar B consumes it as well | `contracts/ontology/registry.json` |
+| Pillar E could not prove a sanitised extract held nothing classified | `pillarE` subscribes to `access.*` | `contracts/events/catalog.json` |
+
+Two items are noted rather than resolved, because they are PSDD questions
+rather than contract defects:
+
+* **IF-3 is inbound-only** in PSDD §7, but the platform needs to exchange
+  engagement scenarios and quality metrics with SDA/PWSA. No outbound
+  interface is defined. This is raised with the programme office as an
+  interface-definition task, and it is a prerequisite for Increment 4 rather
+  than a defect in the platform.
+* **`FidelityScore` is a value object, not an entity type.** PSDD §6.1's
+  phrasing — "`Model` (with `FidelityScore`)" — can be misread as implying a
+  twenty-fourth entity type. The registry defines 23, and the phrase means
+  that `Model` carries one.
+
+---
+
+## 15. Document control
 
 | Version | Date | Change |
 |---|---|---|
 | 1.0 | 2026-11-14 | Initial development plan. Increment 0 implemented as a working foundation; Increments 1–5 specified with exit criteria. |
+| 1.1 | 2026-11-14 | Reconciled against the contract layer: work-package sizes, effort totals, risk identifiers, increment titles and pod names now agree with the roadmap, staffing and risk documents. Reconciliation decisions recorded in §14. |
 
 ### Related artefacts
 

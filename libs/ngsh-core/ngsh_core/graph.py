@@ -106,7 +106,11 @@ class GraphProjector:
         self._db.execute(
             "INSERT INTO projections (name, cursor_seq, updated_at) VALUES (?, ?, ?) "
             "ON CONFLICT(name) DO UPDATE SET cursor_seq = excluded.cursor_seq, updated_at = excluded.updated_at",
-            (self.PROJECTION_NAME, self._highest_seq(), envelope.recordedAt.isoformat()),
+            (
+                self.PROJECTION_NAME,
+                self._highest_seq(),
+                envelope.recordedAt.isoformat(),
+            ),
         )
         return handled
 
@@ -139,7 +143,13 @@ class GraphProjector:
         return False
 
     #: Payload keys that carry the entity an event concerns.
-    ENTITY_PAYLOAD_KEYS = ("entity", "testResult", "processRun", "campaign", "threatSystem")
+    ENTITY_PAYLOAD_KEYS = (
+        "entity",
+        "testResult",
+        "processRun",
+        "campaign",
+        "threatSystem",
+    )
 
     def _entity_from(self, envelope: EventEnvelope) -> dict[str, Any]:
         """The entity carried by an event, if it carries one."""
@@ -243,7 +253,8 @@ class GraphProjector:
 
     def entity(self, entity_type: str, entity_id: str) -> dict[str, Any] | None:
         row = self._db.fetchone(
-            "SELECT body_json FROM entities WHERE id = ? AND type = ?", (entity_id, entity_type)
+            "SELECT body_json FROM entities WHERE id = ? AND type = ?",
+            (entity_id, entity_type),
         )
         if row is None:
             return None
@@ -504,7 +515,14 @@ def _label_for(entity: dict[str, Any] | None, entity_type: str, entity_id: str) 
     if not entity:
         return entity_id
     attributes = entity.get("attributes", {}) or {}
-    for key in ("name", "designation", "partNumber", "serialNumber", "variantId", "skill"):
+    for key in (
+        "name",
+        "designation",
+        "partNumber",
+        "serialNumber",
+        "variantId",
+        "skill",
+    ):
         value = attributes.get(key)
         if isinstance(value, str) and value:
             return value

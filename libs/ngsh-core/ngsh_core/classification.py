@@ -120,6 +120,8 @@ def sanitize_level(level: str | ClassificationLevel) -> ClassificationLevel:
     return ClassificationLevel.UNCLASSIFIED
 
 
-def join_levels(levels: Iterable[str | ClassificationLevel | None]) -> ClassificationLevel:
+def join_levels(
+    levels: Iterable[str | ClassificationLevel | None],
+) -> ClassificationLevel:
     """Most restrictive level across an iterable."""
     return max_level(*list(levels))

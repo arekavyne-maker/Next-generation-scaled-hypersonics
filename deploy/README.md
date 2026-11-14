@@ -243,6 +243,24 @@ Two consequences worth stating plainly:
 The `edge` profile is a third shape again, and is *not* an IL5/IL6 variant:
 one replica, no host networking, node-local storage, no ingress, no egress.
 
+### Identity in each zone
+
+The platform's identity adapter is selected by `NGSH_IDENTITY_PROVIDER`, and
+the platform **refuses** the development (`stub`) adapter outside the `local`
+and `edge` deployment profiles. The chart therefore sets:
+
+| Profile | `NGSH_IDENTITY_PROVIDER` | Behaviour |
+|---|---|---|
+| `local` | `stub` | A development actor, no credential required. |
+| `edge` | `stub` | An annex is not federated to a government directory. |
+| `il5` | `piv` | PIV/ICAM federation. Fails closed if federation is not configured. |
+| `il6` | `piv` | PIV/ICAM federation. Fails closed if federation is not configured. |
+
+This is the difference between an accreditation and a deployment shape: an
+accredited zone must not be able to start with a development identity
+adapter, and the deployment layer makes that structurally impossible rather
+than a matter of operator discipline.
+
 ---
 
 ## 6. The graph store
@@ -286,7 +304,9 @@ What *is* allowed, and what this directory does:
 * Topology: replicas, node placement, anti-affinity, spreading.
 * Networking: which ports, which selectors, which egress is permitted.
 * Storage: size, class, access mode.
-* Identity: service accounts, projected tokens, minimal RBAC.
+* Identity: service accounts, projected tokens, minimal RBAC — and the choice
+  of identity *adapter*, which is an accreditation boundary rather than a
+  domain rule (see §5).
 * Configuration: environment variables, ConfigMap contents, secret
   references.
 * Observability: collector wiring and telemetry conventions.

@@ -1,0 +1,68 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ngsh.mil/contracts/audit/ledger-entry.schema.json",
+  "title": "NGSH Audit Ledger Entry",
+  "description": "The shape of an entry in the tamper-evident audit ledger. The ledger is a hash chain: each entry commits to its predecessor, so a rewritten history breaks every subsequent hash (ADR-0005). This artefact exists because the entry structure is an assurance obligation and must be reviewable as a contract rather than living only in prose. The envelope fields (seq, hash, prevHash, timestamp) are added by the ledger service; the body below is the auditable content.",
+  "type": "object",
+  "required": ["eventType", "body"],
+  "additionalProperties": false,
+  "properties": {
+    "eventType": {
+      "type": "string",
+      "description": "The kind of action being audited, e.g. 'access.decision.recorded', 'ingest.batch.accepted', 'reconcile.conflict.recorded'."
+    },
+    "body": {
+      "type": "object",
+      "description": "The auditable content. The fields present depend on the event type; the common shape is a subject, an action, a resource and an outcome."
+    },
+    "subject": {
+      "type": "object",
+      "description": "Who or what acted. Mirrors the envelope actor.",
+      "properties": {
+        "subjectId": { "type": "string" },
+        "kind": { "type": "string", "enum": ["user", "service", "device", "edge-agent", "anonymous"] },
+        "displayName": { "type": ["string", "null"] },
+        "clearance": { "type": ["string", "null"] },
+        "citizenship": { "type": ["string", "null"] },
+        "tenant": { "type": ["string", "null"] }
+      },
+      "additionalProperties": true
+    },
+    "action": {
+      "type": "string",
+      "description": "The requested action, e.g. 'read', 'write', 'export', 'append', 'sync'."
+    },
+    "resource": {
+      "type": "object",
+      "properties": {
+        "type": { "type": "string" },
+        "id": { "type": "string" },
+        "classification": {
+          "type": "object",
+          "properties": { "level": { "type": "string" } },
+          "additionalProperties": true
+        },
+        "tenant": { "type": ["string", "null"] },
+        "program": { "type": ["string", "null"] }
+      },
+      "additionalProperties": true
+    },
+    "decision": {
+      "type": "string",
+      "enum": ["ALLOW", "DENY", "INDETERMINATE", "QUARANTINED", "REJECTED", "APPLIED", "RECORDED"]
+    },
+    "policyId": { "type": ["string", "null"] },
+    "policyVersion": { "type": ["string", "null"] },
+    "obligations": { "type": "array", "items": { "type": "string" } },
+    "reason": { "type": "string" },
+    "enforcementPoint": {
+      "type": ["string", "null"],
+      "description": "Which enforcement point produced the decision. ADR-0004 requires this so that the trail shows where a decision was made, not merely that one was."
+    },
+    "anchorRef": {
+      "type": ["string", "null"],
+      "description": "Reference to the external anchor under separate administrative control, outside the NGSH boundary. A periodic anchor means that rewriting the whole ledger is still detectable."
+    }
+  },
+  "additionalProperties": false
+}

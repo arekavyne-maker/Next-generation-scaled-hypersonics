@@ -123,8 +123,8 @@ spec:
             defaultMode: 420
         - name: tmp
           emptyDir: {}
-        {{- if $persistence.enabled }}
         - name: data
+          {{- if $persistence.enabled }}
           {{- if $persistence.existingClaim }}
           persistentVolumeClaim:
             claimName: {{ $persistence.existingClaim }}
@@ -132,7 +132,11 @@ spec:
           persistentVolumeClaim:
             claimName: {{ include "ngsh.serviceObjectName" (dict "ctx" $v "key" $key) }}
           {{- end }}
-        {{- end }}
+          {{- else }}
+          # The container root filesystem is read-only, so every service needs a
+          # writable data directory even when it has no persistent volume.
+          emptyDir: {}
+          {{- end }}
         {{- if $v.serviceAccount.workloadIdentity.enabled }}
         - name: workload-identity-token
           projected:
@@ -166,12 +170,18 @@ spec:
               value: {{ $svc.name | quote }}
             - name: PORT
               value: {{ $svc.port | quote }}
+            - name: NGSH_PORT
+              value: {{ $svc.port | quote }}
+            - name: NGSH_HOST
+              value: "0.0.0.0"
             - name: NGSH_ENVIRONMENT
               value: {{ $v.global.environment | quote }}
             - name: NGSH_DEPLOYMENT_PROFILE
               value: {{ $v.activeProfile | quote }}
             - name: NGSH_DEPLOYMENT_ZONE
               value: {{ $v.global.zone | quote }}
+            - name: NGSH_IDENTITY_PROVIDER
+              value: {{ $v.config.identityProvider | quote }}
             - name: NGSH_CLASSIFICATION_LEVEL
               value: {{ $v.config.classificationLevel | quote }}
             - name: NGSH_TENANT
@@ -201,15 +211,18 @@ spec:
                 secretKeyRef:
                   name: {{ include "ngsh.secretName" $v }}
                   key: DATABASE_URL
+            - name: NGSH_DSN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "ngsh.secretName" $v }}
+                  key: DATABASE_URL
             {{- range $up := $svc.upstreams }}
             {{- $upSvc := index $v.services $up }}
             - name: NGSH_{{ $up | upper }}_URL
               value: {{ printf "http://%s:%v" (include "ngsh.serviceDNSName" (dict "ctx" $v "svc" $upSvc)) $upSvc.port | quote }}
             {{- end }}
-            {{- if $persistence.enabled }}
             - name: NGSH_DATA_DIR
               value: {{ $persistence.mountPath | quote }}
-            {{- end }}
             {{- if $v.serviceAccount.workloadIdentity.enabled }}
             - name: NGSH_WL_TOKEN_FILE
               value: {{ printf "%s/token" $v.serviceAccount.workloadIdentity.tokenMountPath | quote }}
@@ -248,10 +261,8 @@ spec:
               readOnly: true
             - name: tmp
               mountPath: /tmp
-            {{- if $persistence.enabled }}
             - name: data
               mountPath: {{ $persistence.mountPath }}
-            {{- end }}
             {{- if $v.serviceAccount.workloadIdentity.enabled }}
             - name: workload-identity-token
               mountPath: {{ $v.serviceAccount.workloadIdentity.tokenMountPath }}

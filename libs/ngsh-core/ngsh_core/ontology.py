@@ -102,7 +102,8 @@ class OntologyRegistry:
 
         if self._entity_validator is not None:
             for error in sorted(
-                self._entity_validator.iter_errors(entity.model_dump(mode="json")), key=lambda e: list(e.path)
+                self._entity_validator.iter_errors(entity.model_dump(mode="json")),
+                key=lambda e: list(e.path),
             ):
                 # The top-level 'oneOf' composes the per-type attribute
                 # schemas. Those are validated separately below, where the
@@ -115,7 +116,8 @@ class OntologyRegistry:
         attribute_validator = self._attribute_validators.get(entity.type)
         if attribute_validator is not None:
             for error in sorted(
-                attribute_validator.iter_errors(entity.attributes), key=lambda e: list(e.path)
+                attribute_validator.iter_errors(entity.attributes),
+                key=lambda e: list(e.path),
             ):
                 location = ".".join(str(part) for part in error.path) or "<root>"
                 errors.append(f"attributes.{location}: {error.message}")
@@ -129,6 +131,42 @@ class OntologyRegistry:
 
         if not entity.id.startswith(f"{spec.idPrefix}:"):
             errors.append(f"entity id {entity.id!r} does not use the declared prefix {spec.idPrefix!r}")
+
+        return errors
+
+    def validate_entity_update(self, entity: Entity, current_classification: str | None) -> list[str]:
+        """Validate an update against the entity's current state.
+
+        Constraint C-009: an entity's classification may not be lowered in
+        place. A downgrade is a *new* entity in a lower partition, carrying
+        ``derivedFromClassified`` and a ``parentRefs`` link to the original,
+        so that the act of downgrading is itself auditable rather than a
+        silent mutation of a record that was once classified.
+        """
+        errors = self.validate_entity(entity)
+        if not current_classification:
+            return errors
+
+        if parse_level(entity.classification.level) < parse_level(current_classification):
+            errors.append(
+                f"constraint C-009: {entity.id} is currently {current_classification} and "
+                f"cannot be lowered in place to {entity.classification.level}; a downgrade "
+                "creates a new entity with derivedFromClassified=true and a parentRefs "
+                "link to the original"
+            )
+
+        provenance = entity.provenance or {}
+        if parse_level(entity.classification.level) < parse_level(current_classification):
+            if not provenance.get("derivedFromClassified"):
+                errors.append(
+                    f"constraint C-009: a downgraded copy of {entity.id} must set "
+                    "provenance.derivedFromClassified=true"
+                )
+            if not provenance.get("parentRefs"):
+                errors.append(
+                    f"constraint C-009: a downgraded copy of {entity.id} must record the "
+                    "original in provenance.parentRefs"
+                )
 
         return errors
 

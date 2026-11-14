@@ -197,6 +197,7 @@ helm template ngsh deploy/helm/ngsh --set deploymentProfiles.activeProfile=edge 
 |---|---|---|---|
 | `config.tenant` | string | `ngsh` | Tenant key. Every query is tenant-scoped. |
 | `config.classificationLevel` | enum | `UNCLASSIFIED` | Zone handling caveat: `UNCLASSIFIED`, `CUI`, `CUI//REL`, `CUI//FOUO`, `RESTRICTED`, `SECRET`, `TOP SECRET`. |
+| `config.identityProvider` | enum | `stub` | `stub` (development actor) or `piv` (PIV/ICAM federation). The platform **refuses** `stub` outside the `local` and `edge` profiles, so the `il5` and `il6` profiles set `piv`. |
 | `config.logLevel` | enum | `INFO` | `DEBUG` \| `INFO` \| `WARNING` \| `ERROR` \| `CRITICAL` |
 | `config.logFormat` | enum | `json` | `json` \| `text` |
 | `config.graphBackend` | enum | `postgres` | `postgres` \| `neptune` \| `janusgraph` |
@@ -356,10 +357,12 @@ Every container receives these variables, whatever the profile:
 | Variable | Source |
 |---|---|
 | `NGSH_SERVICE_NAME` | `services.<name>.name` |
-| `PORT` | `services.<name>.port` |
+| `PORT`, `NGSH_PORT` | `services.<name>.port` |
+| `NGSH_HOST` | `0.0.0.0` |
 | `NGSH_ENVIRONMENT` | `global.environment` |
 | `NGSH_DEPLOYMENT_PROFILE` | the active profile |
 | `NGSH_DEPLOYMENT_ZONE` | `global.zone` |
+| `NGSH_IDENTITY_PROVIDER` | `config.identityProvider` |
 | `NGSH_CLASSIFICATION_LEVEL` | `config.classificationLevel` |
 | `NGSH_TENANT` | `config.tenant` |
 | `NGSH_LOG_LEVEL`, `NGSH_LOG_FORMAT` | `config.logLevel`, `config.logFormat` |
@@ -368,7 +371,7 @@ Every container receives these variables, whatever the profile:
 | `OTEL_SERVICE_NAME` | `services.<name>.name` |
 | `OTEL_EXPORTER_OTLP_ENDPOINT` / `_PROTOCOL` / `_TLS_INSECURE` | `config.otel.*` |
 | `OTEL_RESOURCE_ATTRIBUTES` | Built from the profile, zone, classification and tenant |
-| `DATABASE_URL` | From the Secret |
+| `DATABASE_URL`, `NGSH_DSN` | From the Secret — the same value under both names, because the platform's configuration layer reads the first of the two that is set |
 | `NGSH_<KEY>_URL` | One per entry in `services.<name>.upstreams` |
 | `NGSH_DATA_DIR` | Present when the service has persistence |
 | `NGSH_WL_TOKEN_FILE`, `NGSH_WL_AUDIENCE` | Present when workload identity is enabled |
@@ -415,6 +418,17 @@ FABRIC_SIGNING_KEY
 chart renders its own Secret. When you supply your own Secret, you must
 include a complete `DATABASE_URL` key. Percent-encode any password character
 that is reserved in a URI.
+
+The scheme is **`postgresql://`**, not `postgres://`: the platform's SQL driver
+accepts only the long form. The chart uses the long form.
+
+> The chart always points the services at PostgreSQL, because that is the
+> platform's target relational store in every accredited zone. The platform's
+> current `ngsh-core` release implements only the SQLite executor and raises
+> `NotImplementedError` for a PostgreSQL DSN; that executor lands in a later
+> increment. Until then, the **local** Compose topology is the one that runs
+> end to end (see `deploy/compose/README.md`, §6), and this chart's PostgreSQL
+> wiring is verified but not yet exercised by a running service.
 
 ---
 

@@ -24,9 +24,11 @@
 #                           \       |       /                  |
 #                       +-----------+------------+       +-----------+
 #                       | postgres :5432         |       | ingest    |
-#                       | (event log + graph     |       | :8086     |
-#                       |  projection + ontol.)  |       +-----------+
+#                       | (target relational      |       | :8086     |
+#                       |  store + graph          |       +-----------+
+#                       |  projection schema)     |
 #                       +------------------------+
+#          all six services share one platform database on `ngsh-data`
 #
 #   +---------------------------------------+
 #   | otel-collector :4317 / :4318 / :13133 |
@@ -45,13 +47,13 @@
 # ---------------------------------------------------------------------------
 # Image contract (owned by the application teams, consumed by this file)
 # ---------------------------------------------------------------------------
-#   Each backend service MUST provide a Dockerfile at
+#   Each backend service provides a Dockerfile at
 #       services/<service-name>/Dockerfile
-#   built from this repository root as the build context, and it MUST:
-#     * listen on $PORT
-#     * expose GET /healthz  -> 200 application/json  (liveness)
-#     * expose GET /readyz   -> 200 application/json  (readiness)
-#     * provide /bin/sh and at least one of `wget` or `curl` (healthchecks)
+#   built from this repository root as the build context, and it:
+#     * listens on $PORT
+#     * exposes GET /healthz  -> 200 application/json  (liveness)
+#     * exposes GET /readyz   -> 200 application/json  (readiness)
+#     * runs as uid/gid 65532 and provides `curl`
 #   The web console image is owned by this directory (deploy/compose/web).
 #
 # ---------------------------------------------------------------------------
@@ -63,6 +65,10 @@
 #      ../../.env.example or edit it to override any ${VAR:-default} below.
 #   3. `environment:` in this file — structural values (ports, service URLs,
 #      OTel resource attributes) that are derived, not operator-supplied.
+#
+#   `environment:` wins over `env_file:` for the same key, so the structural
+#   values below are deterministic. The shared example file therefore cannot
+#   silently redirect the stack.
 # ============================================================================
 
 name: ngsh
@@ -80,10 +86,23 @@ x-ngsh-common-env: &ngsh-common-env
   NGSH_DEPLOYMENT_ZONE: ${NGSH_DEPLOYMENT_ZONE:-local-dev}
   NGSH_CLASSIFICATION_LEVEL: ${NGSH_CLASSIFICATION_LEVEL:-UNCLASSIFIED}
   NGSH_TENANT: ${NGSH_TENANT:-ngsh-local}
+  NGSH_HOST: "0.0.0.0"
+  # The stub identity adapter is permitted in the local and edge profiles only.
+  # The platform refuses it anywhere else.
+  NGSH_IDENTITY_PROVIDER: ${NGSH_IDENTITY_PROVIDER:-stub}
   NGSH_LOG_LEVEL: ${NGSH_LOG_LEVEL:-INFO}
   NGSH_LOG_FORMAT: ${NGSH_LOG_FORMAT:-json}
   NGSH_GRAPH_BACKEND: ${NGSH_GRAPH_BACKEND:-postgres}
   NGSH_EDGE_MODE: "false"
+  # Storage. The platform's configuration layer reads NGSH_DSN first and
+  # DATABASE_URL second, so both are set to the same value.
+  #
+  # The default is SQLite on the shared `ngsh-data` volume, which is the
+  # storage engine the platform currently implements. The PostgreSQL service
+  # below is provisioned and ready; point the stack at it with:
+  #   NGSH_DSN=postgresql://ngsh_app:ngsh-dev-placeholder@postgres:5432/ngsh
+  NGSH_DSN: ${NGSH_DSN:-sqlite:////var/lib/ngsh/platform/ngsh.db}
+  DATABASE_URL: ${NGSH_DSN:-sqlite:////var/lib/ngsh/platform/ngsh.db}
   OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-http://otel-collector:4317}
   OTEL_EXPORTER_OTLP_PROTOCOL: ${OTEL_EXPORTER_OTLP_PROTOCOL:-grpc}
   OTEL_PROPAGATORS: ${OTEL_PROPAGATORS:-tracecontext,baggage}
@@ -115,10 +134,45 @@ x-ngsh-service-base: &ngsh-service-base
       max-size: "10m"
       max-file: "3"
 
+# -----------------------------------------------------------------------------
+# Datastores
+# -----------------------------------------------------------------------------
+
 services:
-  # -----------------------------------------------------------------------------
-  # Datastores
-  # -----------------------------------------------------------------------------
+
+  # The service images run as uid/gid 65532. Named volumes are created
+  # root-owned, so one short-lived container hands them over before any
+  # service starts. It exits immediately and is never in the request path.
+  init-data:
+    image: alpine:3.20
+    container_name: ngsh-init-data
+    user: "0:0"
+    command:
+      - sh
+      - -c
+      - |
+        set -eu
+        chown 65532:65532 /data
+        chmod 0770 /data
+        for d in /data/*; do
+          [ -d "$$d" ] || continue
+          chown -R 65532:65532 "$$d"
+          chmod 0770 "$$d"
+        done
+        echo "data volumes ready"
+    volumes:
+      - ngsh-data:/data
+      - ngsh-fabric-data:/data/fabric
+      - ngsh-ontology-data:/data/ontology
+      - ngsh-audit-data:/data/audit
+      - ngsh-graph-data:/data/graph
+      - ngsh-ingest-data:/data/ingest
+      - ngsh-edge-data:/data/edge
+      - ngsh-edge-fabric-data:/data/edge/fabric
+      - ngsh-edge-ingest-data:/data/edge/ingest
+    restart: "no"
+    networks:
+      - ngsh-core
 
   postgres:
     image: postgres:16-alpine
@@ -154,47 +208,48 @@ services:
         max-size: "10m"
         max-file: "3"
 
-  # ---------------------------------------------------------------------------
-  # Graph store
-  # ---------------------------------------------------------------------------
-  # The property graph is projected into the `graph` schema of the same
-  # PostgreSQL instance for local development (NGSH_GRAPH_BACKEND=postgres).
-  #
-  # This is a deliberate placeholder, NOT a graph database. The thread service
-  # speaks to the graph through a single narrow adapter selected by
-  # NGSH_GRAPH_BACKEND / NGSH_GRAPH_URL, so the swap is a configuration change
-  # plus one adapter implementation — see deploy/compose/README.md, section
-  # "Graph store: local stand-in and the path to Neptune/JanusGraph".
-  #
-  # When an accredited graph engine becomes available, uncomment the block below
-  # and point the thread service at it. No other change is required, and no
-  # provider-specific field is introduced.
-  #
-  # graph:
-  #   image: janusgraph/janusgraph:1.1.0
-  #   container_name: ngsh-graph
-  #   environment:
-  #     janusgraph.storage.backend: berkeleyje
-  #     janusgraph.storage.directory: /var/lib/janusgraph/data
-  #   volumes:
-  #     - graph-data:/var/lib/janusgraph/data
-  #   ports:
-  #     - target: 8182
-  #       published: "8182"
-  #       protocol: tcp
-  #   healthcheck:
-  #     test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:8182/ || exit 1"]
-  #     interval: 15s
-  #     timeout: 5s
-  #     retries: 10
-  #     start_period: 30s
-  #   networks:
-  #     - ngsh-core
-  # ---------------------------------------------------------------------------
+# ---------------------------------------------------------------------------
+# Graph store
+# ---------------------------------------------------------------------------
+# The property graph is projected into the `graph` schema of the platform's
+# relational store — the shared SQLite database locally, and the `graph`
+# schema of PostgreSQL once the stack is pointed at it.
+#
+# This is a deliberate placeholder, NOT a graph database. The thread service
+# speaks to the graph through a single narrow adapter selected by
+# NGSH_GRAPH_BACKEND / NGSH_GRAPH_URL, so the swap is a configuration change
+# plus one adapter implementation — see deploy/compose/README.md, section
+# "Graph store: local stand-in and the path to Neptune/JanusGraph".
+#
+# When an accredited graph engine becomes available, uncomment the block below
+# and point the thread service at it. No other change is required, and no
+# provider-specific field is introduced.
+#
+# graph:
+#   image: janusgraph/janusgraph:1.1.0
+#   container_name: ngsh-graph
+#   environment:
+#     janusgraph.storage.backend: berkeleyje
+#     janusgraph.storage.directory: /var/lib/janusgraph/data
+#   volumes:
+#     - graph-data:/var/lib/janusgraph/data
+#   ports:
+#     - target: 8182
+#       published: "8182"
+#       protocol: tcp
+#   healthcheck:
+#     test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:8182/ || exit 1"]
+#     interval: 15s
+#     timeout: 5s
+#     retries: 10
+#     start_period: 30s
+#   networks:
+#     - ngsh-core
+# ---------------------------------------------------------------------------
 
-  # ---------------------------------------------------------------------------
-  # Observability — OpenTelemetry Collector
-  # ---------------------------------------------------------------------------
+# ---------------------------------------------------------------------------
+# Observability — OpenTelemetry Collector
+# ---------------------------------------------------------------------------
   otel-collector:
     image: ${OTEL_COLLECTOR_IMAGE:-otel/opentelemetry-collector-contrib:0.109.0}
     container_name: ngsh-otel-collector
@@ -251,20 +306,23 @@ services:
       <<: *ngsh-common-env
       NGSH_SERVICE_NAME: fabric-service
       PORT: "8082"
+      NGSH_PORT: "8082"
       NGSH_DATA_DIR: /var/lib/ngsh/fabric
-      DATABASE_URL: "postgres://${POSTGRES_APP_USER:-ngsh_app}:${POSTGRES_APP_PASSWORD:-ngsh-dev-placeholder}@postgres:5432/${POSTGRES_DB:-ngsh}"
     volumes:
-      - fabric-data:/var/lib/ngsh/fabric
+      - ngsh-data:/var/lib/ngsh/platform
+      - ngsh-fabric-data:/var/lib/ngsh/fabric
     ports:
       - target: 8082
         published: "${FABRIC_HOST_PORT:-8082}"
         protocol: tcp
         mode: host
     depends_on:
+      init-data:
+        condition: service_completed_successfully
       postgres:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:8082/healthz || curl -fsS http://127.0.0.1:8082/healthz >/dev/null || exit 1"]
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8082/healthz >/dev/null || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 12
@@ -283,23 +341,26 @@ services:
       <<: *ngsh-common-env
       NGSH_SERVICE_NAME: ontology-service
       PORT: "8081"
+      NGSH_PORT: "8081"
       NGSH_DATA_DIR: /var/lib/ngsh/ontology
       NGSH_FABRIC_URL: "http://fabric-service:8082"
-      DATABASE_URL: "postgres://${POSTGRES_APP_USER:-ngsh_app}:${POSTGRES_APP_PASSWORD:-ngsh-dev-placeholder}@postgres:5432/${POSTGRES_DB:-ngsh}"
     volumes:
-      - ontology-data:/var/lib/ngsh/ontology
+      - ngsh-data:/var/lib/ngsh/platform
+      - ngsh-ontology-data:/var/lib/ngsh/ontology
     ports:
       - target: 8081
         published: "${ONTOLOGY_HOST_PORT:-8081}"
         protocol: tcp
         mode: host
     depends_on:
+      init-data:
+        condition: service_completed_successfully
       postgres:
         condition: service_healthy
       fabric-service:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:8081/healthz || curl -fsS http://127.0.0.1:8081/healthz >/dev/null || exit 1"]
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8081/healthz >/dev/null || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 12
@@ -318,15 +379,20 @@ services:
       <<: *ngsh-common-env
       NGSH_SERVICE_NAME: policy-service
       PORT: "8083"
+      NGSH_PORT: "8083"
+      NGSH_DATA_DIR: /var/lib/ngsh/policy
       NGSH_FABRIC_URL: "http://fabric-service:8082"
       NGSH_ONTOLOGY_URL: "http://ontology-service:8081"
-      DATABASE_URL: "postgres://${POSTGRES_APP_USER:-ngsh_app}:${POSTGRES_APP_PASSWORD:-ngsh-dev-placeholder}@postgres:5432/${POSTGRES_DB:-ngsh}"
+    volumes:
+      - ngsh-data:/var/lib/ngsh/platform
     ports:
       - target: 8083
         published: "${POLICY_HOST_PORT:-8083}"
         protocol: tcp
         mode: host
     depends_on:
+      init-data:
+        condition: service_completed_successfully
       postgres:
         condition: service_healthy
       fabric-service:
@@ -334,7 +400,7 @@ services:
       ontology-service:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:8083/healthz || curl -fsS http://127.0.0.1:8083/healthz >/dev/null || exit 1"]
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8083/healthz >/dev/null || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 12
@@ -353,23 +419,26 @@ services:
       <<: *ngsh-common-env
       NGSH_SERVICE_NAME: audit-service
       PORT: "8084"
+      NGSH_PORT: "8084"
       NGSH_DATA_DIR: /var/lib/ngsh/audit
       NGSH_FABRIC_URL: "http://fabric-service:8082"
-      DATABASE_URL: "postgres://${POSTGRES_APP_USER:-ngsh_app}:${POSTGRES_APP_PASSWORD:-ngsh-dev-placeholder}@postgres:5432/${POSTGRES_DB:-ngsh}"
     volumes:
-      - audit-data:/var/lib/ngsh/audit
+      - ngsh-data:/var/lib/ngsh/platform
+      - ngsh-audit-data:/var/lib/ngsh/audit
     ports:
       - target: 8084
         published: "${AUDIT_HOST_PORT:-8084}"
         protocol: tcp
         mode: host
     depends_on:
+      init-data:
+        condition: service_completed_successfully
       postgres:
         condition: service_healthy
       fabric-service:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:8084/healthz || curl -fsS http://127.0.0.1:8084/healthz >/dev/null || exit 1"]
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8084/healthz >/dev/null || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 12
@@ -388,6 +457,7 @@ services:
       <<: *ngsh-common-env
       NGSH_SERVICE_NAME: thread-service
       PORT: "8085"
+      NGSH_PORT: "8085"
       NGSH_DATA_DIR: /var/lib/ngsh/graph
       NGSH_FABRIC_URL: "http://fabric-service:8082"
       NGSH_ONTOLOGY_URL: "http://ontology-service:8081"
@@ -397,15 +467,17 @@ services:
       NGSH_GRAPH_BACKEND: ${NGSH_GRAPH_BACKEND:-postgres}
       NGSH_GRAPH_URL: ${NGSH_GRAPH_URL:-postgresql://postgres:5432/ngsh}
       NGSH_GRAPH_NAMESPACE: ${NGSH_GRAPH_NAMESPACE:-graph}
-      DATABASE_URL: "postgres://${POSTGRES_APP_USER:-ngsh_app}:${POSTGRES_APP_PASSWORD:-ngsh-dev-placeholder}@postgres:5432/${POSTGRES_DB:-ngsh}"
     volumes:
-      - graph-data:/var/lib/ngsh/graph
+      - ngsh-data:/var/lib/ngsh/platform
+      - ngsh-graph-data:/var/lib/ngsh/graph
     ports:
       - target: 8085
         published: "${THREAD_HOST_PORT:-8085}"
         protocol: tcp
         mode: host
     depends_on:
+      init-data:
+        condition: service_completed_successfully
       postgres:
         condition: service_healthy
       fabric-service:
@@ -413,7 +485,7 @@ services:
       ontology-service:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:8085/healthz || curl -fsS http://127.0.0.1:8085/healthz >/dev/null || exit 1"]
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8085/healthz >/dev/null || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 12
@@ -432,19 +504,22 @@ services:
       <<: *ngsh-common-env
       NGSH_SERVICE_NAME: ingest-service
       PORT: "8086"
+      NGSH_PORT: "8086"
       NGSH_DATA_DIR: /var/lib/ngsh/ingest
       NGSH_FABRIC_URL: "http://fabric-service:8082"
       NGSH_AUDIT_URL: "http://audit-service:8084"
       NGSH_ONTOLOGY_URL: "http://ontology-service:8081"
-      DATABASE_URL: "postgres://${POSTGRES_APP_USER:-ngsh_app}:${POSTGRES_APP_PASSWORD:-ngsh-dev-placeholder}@postgres:5432/${POSTGRES_DB:-ngsh}"
     volumes:
-      - ingest-data:/var/lib/ngsh/ingest
+      - ngsh-data:/var/lib/ngsh/platform
+      - ngsh-ingest-data:/var/lib/ngsh/ingest
     ports:
       - target: 8086
         published: "${INGEST_HOST_PORT:-8086}"
         protocol: tcp
         mode: host
     depends_on:
+      init-data:
+        condition: service_completed_successfully
       postgres:
         condition: service_healthy
       fabric-service:
@@ -454,7 +529,7 @@ services:
       ontology-service:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:8086/healthz || curl -fsS http://127.0.0.1:8086/healthz >/dev/null || exit 1"]
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8086/healthz >/dev/null || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 12
@@ -544,17 +619,26 @@ services:
       <<: *ngsh-common-env
       NGSH_SERVICE_NAME: fabric-service
       PORT: "8082"
+      NGSH_PORT: "8082"
+      # The edge profile permits the stub identity adapter.
+      NGSH_DEPLOYMENT_PROFILE: "edge"
+      NGSH_DEPLOYMENT_ZONE: "edge-annex"
       NGSH_EDGE_MODE: "true"
       NGSH_EDGE_NODE_ID: ${NGSH_EDGE_NODE_ID:-edge-node-01}
       NGSH_DATA_DIR: /var/lib/ngsh/fabric
-      DATABASE_URL: "postgres://${POSTGRES_APP_USER:-ngsh_app}:${POSTGRES_APP_PASSWORD:-ngsh-dev-placeholder}@edge-postgres:5432/${POSTGRES_DB:-ngsh}"
+      # The annex has its own store. It never points at the central fabric's.
+      NGSH_DSN: "sqlite:////var/lib/ngsh/platform/ngsh.db"
+      DATABASE_URL: "sqlite:////var/lib/ngsh/platform/ngsh.db"
     volumes:
-      - edge-fabric-data:/var/lib/ngsh/fabric
+      - ngsh-edge-data:/var/lib/ngsh/platform
+      - ngsh-edge-fabric-data:/var/lib/ngsh/fabric
     depends_on:
+      init-data:
+        condition: service_completed_successfully
       edge-postgres:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:8082/healthz || curl -fsS http://127.0.0.1:8082/healthz >/dev/null || exit 1"]
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8082/healthz >/dev/null || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 12
@@ -576,18 +660,25 @@ services:
       <<: *ngsh-common-env
       NGSH_SERVICE_NAME: ingest-service
       PORT: "8086"
+      NGSH_PORT: "8086"
+      NGSH_DEPLOYMENT_PROFILE: "edge"
+      NGSH_DEPLOYMENT_ZONE: "edge-annex"
       NGSH_EDGE_MODE: "true"
       NGSH_EDGE_NODE_ID: ${NGSH_EDGE_NODE_ID:-edge-node-01}
       NGSH_DATA_DIR: /var/lib/ngsh/ingest
       NGSH_FABRIC_URL: "http://edge-fabric-service:8082"
-      DATABASE_URL: "postgres://${POSTGRES_APP_USER:-ngsh_app}:${POSTGRES_APP_PASSWORD:-ngsh-dev-placeholder}@edge-postgres:5432/${POSTGRES_DB:-ngsh}"
+      NGSH_DSN: "sqlite:////var/lib/ngsh/platform/ngsh.db"
+      DATABASE_URL: "sqlite:////var/lib/ngsh/platform/ngsh.db"
     volumes:
-      - edge-ingest-data:/var/lib/ngsh/ingest
+      - ngsh-edge-data:/var/lib/ngsh/platform
+      - ngsh-edge-ingest-data:/var/lib/ngsh/ingest
     depends_on:
+      init-data:
+        condition: service_completed_successfully
       edge-postgres:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:8086/healthz || curl -fsS http://127.0.0.1:8086/healthz >/dev/null || exit 1"]
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8086/healthz >/dev/null || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 12
@@ -595,7 +686,7 @@ services:
     networks:
       - ngsh-edge
 
-# -----------------------------------------------------------------------------
+  # -----------------------------------------------------------------------------
 # Networks
 # -----------------------------------------------------------------------------
 #   ngsh-core : east-west fabric traffic plus the datastore.
@@ -615,21 +706,26 @@ networks:
 # Named volumes (data survives `down`, is removed by `down -v`)
 # -----------------------------------------------------------------------------
 volumes:
+  # The shared platform database the six services open in development mode.
+  ngsh-data:
+    name: ngsh-data
   pgdata:
     name: ngsh-pgdata
-  fabric-data:
+  ngsh-fabric-data:
     name: ngsh-fabric-data
-  ontology-data:
+  ngsh-ontology-data:
     name: ngsh-ontology-data
-  audit-data:
+  ngsh-audit-data:
     name: ngsh-audit-data
-  graph-data:
+  ngsh-graph-data:
     name: ngsh-graph-data
-  ingest-data:
+  ngsh-ingest-data:
     name: ngsh-ingest-data
+  ngsh-edge-data:
+    name: ngsh-edge-data
+  ngsh-edge-fabric-data:
+    name: ngsh-edge-fabric-data
+  ngsh-edge-ingest-data:
+    name: ngsh-edge-ingest-data
   edge-pgdata:
     name: ngsh-edge-pgdata
-  edge-fabric-data:
-    name: ngsh-edge-fabric-data
-  edge-ingest-data:
-    name: ngsh-edge-ingest-data

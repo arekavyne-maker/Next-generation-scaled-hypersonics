@@ -23,7 +23,13 @@ class NGSHError(Exception):
         self.context = context
 
     def to_dict(self) -> dict[str, Any]:
-        return {"error": {"code": self.code, "message": self.message, "context": self.context}}
+        return {
+            "error": {
+                "code": self.code,
+                "message": self.message,
+                "context": self.context,
+            }
+        }
 
 
 class ValidationError(NGSHError):

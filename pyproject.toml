@@ -69,6 +69,10 @@ markers = [
 line-length = 110
 target-version = "py312"
 src = ["libs", "services", "tests"]
+# Generated code is the generator's responsibility. Its exact shape is
+# enforced by `make codegen-check`, which fails when the committed output
+# no longer matches a fresh generation from the contract.
+extend-exclude = ["libs/ngsh-core/ngsh_core/generated/**"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "SIM"]

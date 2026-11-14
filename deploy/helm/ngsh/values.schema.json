@@ -204,6 +204,7 @@
               "type": "string",
               "enum": ["UNCLASSIFIED", "CUI", "CUI//REL", "CUI//FOUO", "RESTRICTED", "SECRET", "TOP SECRET"]
             },
+            "identityProvider": { "type": "string", "enum": ["stub", "piv"] },
             "logLevel": { "type": "string" },
             "logFormat": { "type": "string" },
             "graphBackend": { "type": "string" },
@@ -395,6 +396,7 @@
           "type": "string",
           "enum": ["UNCLASSIFIED", "CUI", "CUI//REL", "CUI//FOUO", "RESTRICTED", "SECRET", "TOP SECRET"]
         },
+        "identityProvider": { "type": "string", "enum": ["stub", "piv"] },
         "logLevel": { "type": "string", "enum": ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"] },
         "logFormat": { "type": "string", "enum": ["json", "text"] },
         "graphBackend": { "type": "string", "enum": ["postgres", "neptune", "janusgraph"] },
