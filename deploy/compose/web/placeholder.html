@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>NGSH — console not built</title>
+  <style>
+    :root { color-scheme: light dark; }
+    body {
+      font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      margin: 0; min-height: 100vh; display: grid; place-items: center;
+      background: #0f1420; color: #e6edf7;
+    }
+    main { max-width: 40rem; padding: 2.5rem; }
+    h1 { font-size: 1.35rem; margin: 0 0 0.75rem; letter-spacing: 0.01em; }
+    code { background: #1b2333; padding: 0.15rem 0.4rem; border-radius: 4px; }
+    ul { line-height: 1.8; }
+    .muted { color: #9fb0c9; font-size: 0.9rem; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>NGSH web console — bundle not present</h1>
+    <p class="muted">
+      The static console bundle was not found in this image. The platform
+      services themselves are unaffected and are reachable through the API
+      prefixes listed below.
+    </p>
+    <ul>
+      <li><code>/api/ontology/</code> &rarr; ontology-service (8081)</li>
+      <li><code>/api/fabric/</code> &rarr; fabric-service (8082)</li>
+      <li><code>/api/policy/</code> &rarr; policy-service (8083)</li>
+      <li><code>/api/audit/</code> &rarr; audit-service (8084)</li>
+      <li><code>/api/thread/</code> &rarr; thread-service (8085)</li>
+      <li><code>/api/ingest/</code> &rarr; ingest-service (8086)</li>
+      <li><code>/healthz</code> &rarr; console health</li>
+    </ul>
+    <p class="muted">
+      Build the console with <code>npm ci &amp;&amp; npm run build</code> in
+      <code>apps/web</code> so that <code>apps/web/dist</code> exists, then
+      rebuild the image.
+    </p>
+  </main>
+</body>
+</html>

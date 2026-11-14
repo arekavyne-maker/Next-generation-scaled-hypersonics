@@ -1,0 +1,179 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ngsh.mil/contracts/ontology/common.schema.json",
+  "title": "NGSH Ontology Common Headers",
+  "description": "Shared headers, attributes and value objects used by every NGSH entity. Every NGSH record carries these headers regardless of domain, so that governance, classification, lineage and audit operate uniformly across all eight pillars.",
+  "$defs": {
+    "EntityId": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$",
+      "description": "Stable, human-referenceable identifier. Format: <TYPE_PREFIX>:<ULID or domain key> (e.g. TR:01J8Z..., PART:NSN-4472)."
+    },
+    "Timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "RFC 3339 / ISO 8601 UTC instant."
+    },
+    "Classification": {
+      "type": "object",
+      "description": "Handling caveat carried by every record. Enforcement is not limited to this header: the storage layer partitions physically by classification level (see ADR-0007).",
+      "required": ["level"],
+      "properties": {
+        "level": {
+          "type": "string",
+          "enum": ["UNCLASSIFIED", "CUI", "CUI//REL", "CUI//FOUO", "RESTRICTED", "SECRET", "TOP SECRET"],
+          "description": "Highest classification level of the record's content."
+        },
+        "caveats": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Control markings, e.g. 'NOFORN', 'PROPIN', 'CNSSI 5016.1'."
+        },
+        "origins": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Original classification authorities. Required for 508/5320-style document marking."
+        },
+        "derivedFromClassified": { "type": "boolean", "default": false }
+      },
+      "additionalProperties": false
+    },
+    "Actor": {
+      "type": "object",
+      "description": "Who or what performed the action. 'kind' distinguishes human, workload identity, device or edge agent.",
+      "required": ["subjectId", "kind"],
+      "properties": {
+        "subjectId": { "$ref": "#/$defs/EntityId" },
+        "kind": { "type": "string", "enum": ["user", "service", "device", "edge-agent", "anonymous"] },
+        "displayName": { "type": ["string", "null"] },
+        "clearance": { "type": ["string", "null"], "enum": ["NONE", "SECRET", "TOP SECRET", "SCI-CLEARED", null] },
+        "citizenship": { "type": ["string", "null"], "enum": ["US", "ALLIED", "FOREIGN", "UNKNOWN", null] },
+        "tenant": { "type": ["string", "null"], "description": "Tenancy key the subject operates in. Used by the cross-tenant denial rule." },
+        "programs": { "type": "array", "items": { "type": "string" }, "description": "Program access tags (need-to-know scoping)." },
+        "needToKnow": { "type": "array", "items": { "type": "string" } },
+        "org": { "type": ["string", "null"] }
+      },
+      "additionalProperties": false
+    },
+    "Provenance": {
+      "type": "object",
+      "description": "Where the data came from and how much to trust it. Required for every derived/estimated value; supports CMMC assessment and program protection planning.",
+      "properties": {
+        "source": { "type": ["string", "null"], "description": "Origin system or process, e.g. 'wind-tunnel.itc', 'analyst.judgment', 'ingest:csv@r2'." },
+        "method": { "type": ["string", "null"], "description": "Method or algorithm identifier, e.g. 'kalman-fusion-v2'." },
+        "confidence": { "type": ["number", "null"], "minimum": 0, "maximum": 1 },
+        "observedAt": { "anyOf": [{ "$ref": "#/$defs/Timestamp" }, { "type": "null" }] },
+        "parentRefs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/EntityId" },
+          "description": "Upstream records that produced this one; powers lineage graph traversal."
+        },
+        "reviewedBy": { "type": ["string", "null"], "description": "Human approver for safety-relevant or low-confidence assertions." },
+        "modelVersion": { "type": ["string", "null"], "description": "Model version that produced the value; required when method is an estimator." }
+      },
+      "additionalProperties": false
+    },
+    "EntityHeader": {
+      "type": "object",
+      "description": "Common header stamped on every NGSH entity.",
+      "required": ["id", "type", "version", "createdAt", "updatedAt", "tenant"],
+      "properties": {
+        "id": { "$ref": "#/$defs/EntityId" },
+        "type": { "type": "string" },
+        "tenant": { "type": "string", "description": "Multi-program tenancy key. Every query is tenant-scoped." },
+        "program": { "type": "string", "description": "Program of record (e.g. NGSH-SHY, NGSH-MAVERICK)." },
+        "version": { "type": "integer", "minimum": 1, "description": "Monotonic optimistic-concurrency version of this entity." },
+        "classification": { "$ref": "#/$defs/Classification" },
+        "createdAt": { "$ref": "#/$defs/Timestamp" },
+        "updatedAt": { "$ref": "#/$defs/Timestamp" },
+        "createdBy": { "type": "string" },
+        "updatedBy": { "type": "string" },
+        "provenance": { "$ref": "#/$defs/Provenance" },
+        "labels": { "type": "object", "additionalProperties": { "type": "string" } },
+        "annotations": { "type": "object", "additionalProperties": { "type": "string" }, "description": "Free-form keyed annotations; not indexed." },
+        "deleted": { "type": "boolean", "default": false, "description": "Soft delete marker; events remain in the log." }
+      }
+    },
+    "Measurement": {
+      "type": "object",
+      "description": "A single measured or computed quantity with uncertainty. Used across test results, process runs and telemetry.",
+      "required": ["name", "value"],
+      "properties": {
+        "name": { "type": "string" },
+        "value": { "type": "number" },
+        "unit": { "type": "string" },
+        "uncertainty": { "type": "number", "minimum": 0, "description": "Expanded uncertainty (k=2) when available." },
+        "min": { "type": "number" },
+        "max": { "type": "number" },
+        "method": { "type": "string" },
+        "channel": { "type": "string", "description": "Instrumentation channel identifier." }
+      },
+      "additionalProperties": false
+    },
+    "Attachment": {
+      "type": "object",
+      "description": "Reference to a large artifact held in the object store. The store holds bytes; the graph holds the pointer plus integrity digest.",
+      "required": ["uri", "sha256"],
+      "properties": {
+        "uri": { "type": "string" },
+        "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+        "sizeBytes": { "type": ["integer", "null"], "minimum": 0 },
+        "mediaType": { "type": ["string", "null"] },
+        "classification": {
+          "anyOf": [{ "$ref": "#/$defs/Classification" }, { "type": "null" }]
+        },
+        "encrypted": { "type": "boolean" },
+        "retentionUntil": { "anyOf": [{ "$ref": "#/$defs/Timestamp" }, { "type": "null" }] }
+      },
+      "additionalProperties": false
+    },
+    "Reference": {
+      "type": "object",
+      "description": "Typed pointer to another entity.",
+      "required": ["type", "id"],
+      "properties": {
+        "type": { "type": "string" },
+        "id": { "$ref": "#/$defs/EntityId" }
+      },
+      "additionalProperties": false
+    },
+    "FidelityScore": {
+      "type": "object",
+      "description": "Quantitative credibility of a simulation model. Every Model entity carries one; test-coupled M&S is a core NGSH principle (PSDD 4.2 #4).",
+      "required": ["overall"],
+      "properties": {
+        "overall": { "type": "number", "minimum": 0, "maximum": 1 },
+        "method": { "type": "string", "description": "Scoring method identifier, e.g. 'rmse-vs-baseline-normalised'." },
+        "components": {
+          "type": "object",
+          "additionalProperties": { "type": "number" },
+          "description": "Per-dimension fidelity (aerodynamics, thermal, structural, timeline...)."
+        },
+        "applicabilityEnvelope": {
+          "type": "object",
+          "description": "Regime beyond which the model must not be used. Bounds for dimension parameters.",
+          "additionalProperties": { "type": "object" }
+        },
+        "evaluatedAt": { "$ref": "#/$defs/Timestamp" },
+        "evidenceRefs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/EntityId" },
+          "description": "Test results that justify the score."
+        }
+      },
+      "additionalProperties": false
+    },
+    "CostEstimate": {
+      "type": "object",
+      "description": "Unit cost trace attached to design and production decisions. Cost-as-a-requirement (PSDD 4.2 #5).",
+      "properties": {
+        "amount": { "type": "number" },
+        "currency": { "type": "string", "default": "USD" },
+        "basis": { "type": "string", "enum": ["QUOTE", "ACTUAL", "ANALOG", "PARAMETRIC", "LEARNED_CURVE"] },
+        "confidence": { "type": "number", "minimum": 0, "maximum": 1 },
+        "productionRate": { "type": "number", "description": "Units per year at which the estimate is valid." }
+      },
+      "additionalProperties": false
+    }
+  }
+}

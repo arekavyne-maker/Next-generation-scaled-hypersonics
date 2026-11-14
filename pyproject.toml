@@ -1,0 +1,81 @@
+[project]
+name = "ngsh"
+version = "0.1.0"
+description = "Next-Generation Scaled Hypersonics platform: shared ontology, event-sourced data fabric, digital thread and zero-trust access control."
+requires-python = ">=3.12"
+license = { text = "Proprietary" }
+dependencies = [
+    "ngsh-core",
+    "ngsh-ontology-service",
+    "ngsh-fabric-service",
+    "ngsh-policy-service",
+    "ngsh-audit-service",
+    "ngsh-thread-service",
+    "ngsh-ingest-service",
+    "ngsh-edge-agent",
+]
+
+[tool.uv.workspace]
+members = [
+    "libs/ngsh-core",
+    "services/ontology-service",
+    "services/fabric-service",
+    "services/policy-service",
+    "services/audit-service",
+    "services/thread-service",
+    "services/ingest-service",
+    "apps/edge-agent",
+]
+
+[tool.uv.sources]
+ngsh-core = { workspace = true }
+ngsh-ontology-service = { workspace = true }
+ngsh-fabric-service = { workspace = true }
+ngsh-policy-service = { workspace = true }
+ngsh-audit-service = { workspace = true }
+ngsh-thread-service = { workspace = true }
+ngsh-ingest-service = { workspace = true }
+ngsh-edge-agent = { workspace = true }
+
+[dependency-groups]
+dev = [
+    "pytest>=8.2",
+    "pytest-asyncio>=0.23",
+    "pytest-cov>=5.0",
+    "ruff>=0.5",
+    "jsonschema>=4.22",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = [
+    "libs/ngsh-core",
+    "services/ontology-service/src",
+    "services/fabric-service/src",
+    "services/policy-service/src",
+    "services/audit-service/src",
+    "services/thread-service/src",
+    "services/ingest-service/src",
+]
+addopts = "-q --strict-markers"
+asyncio_default_fixture_loop_scope = "function"
+markers = [
+    "integration: exercises multiple services together",
+    "e2e: full vertical slice through the foundation",
+    "contract: validates the contract layer against the code",
+]
+
+[tool.ruff]
+line-length = 110
+target-version = "py312"
+src = ["libs", "services", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
+# B008 is the FastAPI idiom for declaring a request body in a signature.
+# FastAPI resolves the dependency at import time, so the call must stay in
+# the default; ruff's suggested workaround does not apply to this framework.
+ignore = ["E501", "B008"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["B011"]

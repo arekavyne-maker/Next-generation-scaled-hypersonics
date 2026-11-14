@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ngsh.mil/contracts/ontology/relations.schema.json",
+  "title": "NGSH Ontology Relations",
+  "description": "The 10 canonical edge types of the NGSH shared ontology (PSDD 6.1). Every relation is a first-class, classified, provenance-stamped edge with its own lifecycle so that a digital-thread assertion can be retracted without erasing history. Relation instantiation rules (allowed source/target types, cardinality, whether the edge may cross a classification boundary) live in contracts/ontology/registry.json.",
+  "type": "object",
+  "required": ["id", "type", "from", "to", "assertedAt"],
+  "properties": {
+    "id": { "$ref": "https://ngsh.mil/contracts/ontology/common.schema.json#/$defs/EntityId" },
+    "type": {
+      "type": "string",
+      "enum": [
+        "satisfies",
+        "verifies",
+        "manufacturedBy",
+        "characterizedBy",
+        "derivedFrom",
+        "threatens",
+        "engages",
+        "requiresSkill",
+        "supplies",
+        "reconstitutes"
+      ]
+    },
+    "from": { "$ref": "https://ngsh.mil/contracts/ontology/common.schema.json#/$defs/Reference" },
+    "to": { "$ref": "https://ngsh.mil/contracts/ontology/common.schema.json#/$defs/Reference" },
+    "tenant": { "type": "string" },
+    "program": { "type": "string" },
+    "classification": { "$ref": "https://ngsh.mil/contracts/ontology/common.schema.json#/$defs/Classification" },
+    "assertedAt": { "type": "string", "format": "date-time" },
+    "assertedBy": { "type": "string" },
+    "provenance": { "$ref": "https://ngsh.mil/contracts/ontology/common.schema.json#/$defs/Provenance" },
+    "retractedAt": { "type": "string", "format": "date-time" },
+    "retractedBy": { "type": "string" },
+    "retractionReason": { "type": "string" },
+    "attributes": { "type": "object", "additionalProperties": true },
+    "weight": { "type": "number", "description": "Edge strength; used by trace scoring and confidence roll-up." },
+    "confidence": { "type": "number", "minimum": 0, "maximum": 1 }
+  }
+}

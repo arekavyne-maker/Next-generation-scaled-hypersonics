@@ -1,0 +1,28 @@
+{
+  "catalogVersion": "1.0.0",
+  "description": "Index of NGSH event types. The fabric routes on eventType; consumers subscribe by prefix. Adding a type is a minor version bump; changing the meaning or required fields of an existing payload is a major bump of that type's own eventVersion.",
+  "events": [
+    { "eventType": "entity.created", "eventVersion": 1, "schema": "contracts/events/entity.created.schema.json", "owner": "FOUNDATION", "description": "New entity in the shared ontology." },
+    { "eventType": "entity.updated", "eventVersion": 1, "schema": "contracts/events/entity.updated.schema.json", "owner": "FOUNDATION", "description": "Existing entity mutated." },
+    { "eventType": "entity.relation.asserted", "eventVersion": 1, "schema": "contracts/events/entity.relation.asserted.schema.json", "owner": "FOUNDATION", "description": "Digital-thread edge added." },
+    { "eventType": "entity.relation.retracted", "eventVersion": 1, "schema": "contracts/events/entity.relation.retracted.schema.json", "owner": "FOUNDATION", "description": "Digital-thread edge withdrawn." },
+    { "eventType": "test.campaign.planned", "eventVersion": 1, "schema": "contracts/events/test.campaign.planned.schema.json", "owner": "C,G", "description": "Test campaign planned against requirements and articles." },
+    { "eventType": "test.result.recorded", "eventVersion": 1, "schema": "contracts/events/test.result.recorded.schema.json", "owner": "C", "description": "Test outcome recorded; immutable." },
+    { "eventType": "process.run.completed", "eventVersion": 1, "schema": "contracts/events/process.run.completed.schema.json", "owner": "B", "description": "Manufacturing process run finished." },
+    { "eventType": "model.validated", "eventVersion": 1, "schema": "contracts/events/model.validated.schema.json", "owner": "G,B,F", "description": "Model scored against test evidence; fidelity updated." },
+    { "eventType": "ingest.batch.accepted", "eventVersion": 1, "schema": "contracts/events/ingest.batch.accepted.schema.json", "owner": "FOUNDATION", "description": "Bulk ingestion batch accepted." },
+    { "eventType": "access.decision.recorded", "eventVersion": 1, "schema": "contracts/events/access.decision.recorded.schema.json", "owner": "FOUNDATION", "description": "Authorization outcome recorded." },
+    { "eventType": "reconcile.conflict.recorded", "eventVersion": 1, "schema": "contracts/events/reconcile.conflict.recorded.schema.json", "owner": "FOUNDATION", "description": "Edge reconciliation conflict detected and escalated (ADR-0006 Step 6)." }
+  ],
+  "subscriptionGroups": {
+    "foundation": ["entity.*", "ingest.*", "access.*", "reconcile.*"],
+    "pillarA": ["entity.*", "test.result.recorded"],
+    "pillarB": ["process.run.completed", "test.result.recorded", "model.validated"],
+    "pillarC": ["test.*", "ingest.*", "model.validated"],
+    "pillarD": ["entity.*", "process.run.completed"],
+    "pillarE": ["entity.*"],
+    "pillarF": ["entity.*", "model.validated"],
+    "pillarG": ["test.*", "model.validated", "entity.*"],
+    "pillarH": ["entity.*", "model.validated"]
+  }
+}

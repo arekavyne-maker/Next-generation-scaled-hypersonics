@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ngsh.mil/contracts/events/entity.updated.schema.json",
+  "title": "entity.updated",
+  "description": "An existing entity was mutated. Carries the full post-change body so projections remain pure functions of the log. Immutable types (TestResult) must not emit this event; they emit a superseding event instead (constraint C-003).",
+  "type": "object",
+  "required": ["entity", "changedFields"],
+  "additionalProperties": false,
+  "properties": {
+    "entity": { "type": "object", "description": "Full post-change entity body, same shape as entity.created.entity." },
+    "changedFields": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Dotted paths of changed attributes. Enables delta propagation without diffing the body."
+    },
+    "previousVersion": { "type": "integer", "minimum": 1 }
+  }
+}

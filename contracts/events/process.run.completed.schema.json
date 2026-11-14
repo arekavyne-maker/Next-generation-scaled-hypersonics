@@ -1,0 +1,58 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ngsh.mil/contracts/events/process.run.completed.schema.json",
+  "title": "process.run.completed",
+  "description": "A manufacturing process run finished. Carries the measured parameter set that the CMC process-characterisation model (Pillar B-2) consumes to learn the process-to-microstructure-to-test-result chain and to detect drift before scrap.",
+  "type": "object",
+  "required": ["processRun"],
+  "additionalProperties": false,
+  "properties": {
+    "processRun": {
+      "type": "object",
+      "required": ["id", "type", "version", "createdAt", "updatedAt", "tenant"],
+      "properties": {
+        "id": { "type": "string" },
+        "type": { "const": "ProcessRun" },
+        "tenant": { "type": "string" },
+        "program": { "type": "string" },
+        "version": { "type": "integer", "minimum": 1 },
+        "classification": { "$ref": "https://ngsh.mil/contracts/ontology/common.schema.json#/$defs/Classification" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" },
+        "provenance": { "$ref": "https://ngsh.mil/contracts/ontology/common.schema.json#/$defs/Provenance" },
+        "attributes": {
+          "type": "object",
+          "required": ["processPlanId", "startedAt"],
+          "properties": {
+            "processPlanId": { "type": "string" },
+            "materialId": { "type": "string" },
+            "partId": { "type": "string" },
+            "facilityId": { "type": "string" },
+            "startedAt": { "type": "string", "format": "date-time" },
+            "endedAt": { "type": "string", "format": "date-time" },
+            "measuredParameters": { "type": "object", "additionalProperties": true },
+            "measuredSeries": { "type": "array", "items": { "$ref": "https://ngsh.mil/contracts/ontology/common.schema.json#/$defs/Measurement" } },
+            "operatorId": { "type": "string" },
+            "disposition": { "type": "string", "enum": ["ACCEPTED", "REWORK", "SCRAP", "PENDING"] },
+            "nonconformanceId": { "type": "string" },
+            "driftFlags": { "type": "array", "items": { "type": "string" } }
+          }
+        }
+      }
+    },
+    "sensorChannels": {
+      "type": "array",
+      "description": "High-rate sensor channels retained in the time-series store rather than the graph.",
+      "items": {
+        "type": "object",
+        "required": ["channel", "uri"],
+        "properties": {
+          "channel": { "type": "string" },
+          "uri": { "type": "string" },
+          "sampleRateHz": { "type": "number" },
+          "sha256": { "type": "string" }
+        }
+      }
+    }
+  }
+}

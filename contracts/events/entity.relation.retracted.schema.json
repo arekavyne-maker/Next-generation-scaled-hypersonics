@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ngsh.mil/contracts/events/entity.relation.retracted.schema.json",
+  "title": "entity.relation.retracted",
+  "description": "An existing edge was withdrawn. The edge is tombstoned rather than deleted, so that the digital thread retains the history of what was once believed and why it was withdrawn.",
+  "type": "object",
+  "required": ["relationId", "reason"],
+  "additionalProperties": false,
+  "properties": {
+    "relationId": { "type": "string" },
+    "reason": { "type": "string" },
+    "supersededBy": { "type": "string" }
+  }
+}

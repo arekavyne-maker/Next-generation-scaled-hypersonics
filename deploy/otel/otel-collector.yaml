@@ -1,0 +1,172 @@
+# =============================================================================
+# NGSH — OpenTelemetry Collector configuration
+# =============================================================================
+#
+# Provider-neutral by construction. The collector receives OTLP from every
+# NGSH service, batches it, stamps the platform's resource attributes, and
+# forwards everything to ONE generic OTLP endpoint that is named purely by
+# environment variable. Which vendor, which cluster, or which on-prem
+# pipeline receives the data is an environment concern, not a configuration
+# concern, and never baked into this file.
+#
+#   OTEL_EXPORTER_OTLP_ENDPOINT   where telemetry goes (host:port)
+#   OTEL_EXPORTER_OTLP_TLS_INSECURE  "true" to disable TLS (local dev only)
+#
+# The `${env:VAR:-default}` form requires Collector v0.62.0 or newer. The
+# reference image used by deploy/compose is otel/opentelemetry-collector-contrib
+# 0.109.0, which satisfies it.
+#
+# Companion documentation: deploy/otel/README.md (trace/metric/log conventions
+# and the cardinality rules).
+# =============================================================================
+
+extensions:
+  # Liveness/readiness for the collector itself. The upstream image is
+  # distroless, so this endpoint is what an external prober must use.
+  health_check:
+    endpoint: ${env:OTEL_HEALTH_ENDPOINT:-0.0.0.0:13133}
+
+  # Diagnostic endpoints. Disabled by default in accredited deployments by
+  # removing them from `service.extensions` below.
+  pprof:
+    endpoint: ${env:OTEL_PPROF_ENDPOINT:-0.0.0.0:1777}
+  zpages:
+    endpoint: ${env:OTEL_ZPAGES_ENDPOINT:-0.0.0.0:55679}
+
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: ${env:OTEL_RECEIVER_GRPC_ENDPOINT:-0.0.0.0:4317}
+        max_recv_msg_size_mib: 16
+        max_concurrent_streams: 256
+      http:
+        endpoint: ${env:OTEL_RECEIVER_HTTP_ENDPOINT:-0.0.0.0:4318}
+        max_recv_msg_size_mib: 16
+
+processors:
+  # Must be first: it protects the collector from an overloaded downstream.
+  memory_limiter:
+    check_interval: 1s
+    limit_mib: ${env:OTEL_MEMORY_LIMIT_MIB:-512}
+    spike_limit_mib: ${env:OTEL_MEMORY_SPIKE_LIMIT_MIB:-128}
+
+  # ---------------------------------------------------------------------------
+  # Platform resource attributes
+  # ---------------------------------------------------------------------------
+  # These four attributes are MANDATORY on every signal. They answer "which
+  # zone is this, how classified is it, under which profile is it running, and
+  # whose data is it" without ever touching the payload.
+  #
+  # `upsert` means: take the value from the environment, but do not overwrite
+  # a value the workload set explicitly and more specifically.
+  resource:
+    attributes:
+      - key: ngsh.classification.level
+        value: ${env:NGSH_CLASSIFICATION_LEVEL:-UNCLASSIFIED}
+        action: upsert
+      - key: ngsh.deployment.profile
+        value: ${env:NGSH_DEPLOYMENT_PROFILE:-local}
+        action: upsert
+      - key: deployment.zone.name
+        value: ${env:NGSH_DEPLOYMENT_ZONE:-local-dev}
+        action: upsert
+      - key: ngsh.tenant
+        value: ${env:NGSH_TENANT:-ngsh-local}
+        action: upsert
+      - key: service.namespace
+        value: ngsh
+        action: upsert
+
+  # ---------------------------------------------------------------------------
+  # Redaction
+  # ---------------------------------------------------------------------------
+  # Credentials and clearance-bearing material must never leave the zone in a
+  # telemetry record. This is a blanket filter, not a per-service convention:
+  # a header that carries a token is dropped regardless of which service
+  # emitted it.
+  attributes/redact:
+    actions:
+      - key: http.request.header.authorization
+        action: delete
+      - key: http.request.header.cookie
+        action: delete
+      - key: http.response.header.set-cookie
+        action: delete
+      - key: http.request.header.x-api-key
+        action: delete
+      - key: ngsh.actor.subject_id
+        action: delete
+      - key: ngsh.actor.clearance
+        action: delete
+      - key: ngsh.actor.citizenship
+        action: delete
+
+  # ---------------------------------------------------------------------------
+  # Cardinality guard
+  # ---------------------------------------------------------------------------
+  # Entity identifiers are unbounded and must never become a metric label.
+  # Metrics whose names carry an entity dimension are dropped at the edge
+  # rather than allowed to blow up the backend. See deploy/otel/README.md,
+  # "Cardinality rules".
+  filter/cardinality:
+    error_mode: ignore
+    metrics:
+      exclude:
+        match_type: regexp
+        metric_names:
+          - '^.*\.(entity|aggregate|event|record)_id\..*$'
+          - '^.*_by_(entity|aggregate|event|record)_id$'
+          - '^.*\.entity_id$'
+
+  # Batching. Sits immediately before the exporter.
+  batch:
+    timeout: ${env:OTEL_BATCH_TIMEOUT:-10s}
+    send_batch_size: ${env:OTEL_BATCH_SIZE:-1024}
+    send_batch_max_size: ${env:OTEL_BATCH_MAX_SIZE:-2048}
+
+exporters:
+  # The single, generic OTLP exporter. Nothing here is vendor-specific.
+  otlp:
+    endpoint: ${env:OTEL_EXPORTER_OTLP_ENDPOINT:-http://127.0.0.1:4317}
+    tls:
+      insecure: ${env:OTEL_EXPORTER_OTLP_TLS_INSECURE:-false}
+    headers:
+      x-ngsh-deployment-profile: ${env:NGSH_DEPLOYMENT_PROFILE:-local}
+      x-ngsh-classification-level: ${env:NGSH_CLASSIFICATION_LEVEL:-UNCLASSIFIED}
+    sending_queue:
+      enabled: true
+      num_consumers: 4
+      queue_size: 2048
+    retry_on_failure:
+      enabled: true
+      initial_interval: 5s
+      max_interval: 30s
+      max_elapsed_time: 300s
+
+  # Local development only: human-readable dump of everything received.
+  # Remove the `debug` exporter from the pipelines before promoting a
+  # configuration to an accredited zone.
+  debug:
+    verbosity: ${env:OTEL_DEBUG_VERBOSITY:-normal}
+    sampling_initial: ${env:OTEL_DEBUG_SAMPLING_INITIAL:-5}
+    sampling_thereafter: ${env:OTEL_DEBUG_SAMPLING_THEREAFTER:-200}
+
+service:
+  extensions: [health_check, pprof, zpages]
+  telemetry:
+    logs:
+      level: ${env:OTEL_COLLECTOR_LOG_LEVEL:-info}
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [memory_limiter, resource, attributes/redact, batch]
+      exporters: [otlp, debug]
+    metrics:
+      receivers: [otlp]
+      processors: [memory_limiter, resource, filter/cardinality, batch]
+      exporters: [otlp]
+    logs:
+      receivers: [otlp]
+      processors: [memory_limiter, resource, attributes/redact, batch]
+      exporters: [otlp, debug]

@@ -1,0 +1,60 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ngsh.mil/contracts/events/test.campaign.planned.schema.json",
+  "title": "test.campaign.planned",
+  "description": "A test campaign was planned against a set of requirements and articles. Emitted by the campaign digital twin (Pillar G-2) so that range capacity, instrumentation and telemetry coverage decisions are traceable to the objectives they serve.",
+  "type": "object",
+  "required": ["campaign"],
+  "additionalProperties": false,
+  "properties": {
+    "campaign": {
+      "type": "object",
+      "required": ["id", "type", "version", "createdAt", "updatedAt", "tenant"],
+      "properties": {
+        "id": { "type": "string" },
+        "type": { "const": "TestCampaign" },
+        "tenant": { "type": "string" },
+        "program": { "type": "string" },
+        "version": { "type": "integer", "minimum": 1 },
+        "classification": { "$ref": "https://ngsh.mil/contracts/ontology/common.schema.json#/$defs/Classification" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" },
+        "provenance": { "$ref": "https://ngsh.mil/contracts/ontology/common.schema.json#/$defs/Provenance" },
+        "attributes": {
+          "type": "object",
+          "required": ["name", "campaignType", "status"],
+          "properties": {
+            "name": { "type": "string" },
+            "campaignType": { "type": "string", "enum": ["GROUND", "WIND_TUNNEL", "SLED", "FLIGHT", "ENGINE", "MATERIAL_COUPOON", "STRUCTURAL", "QUALIFICATION"] },
+            "status": { "type": "string", "enum": ["PLANNED", "ACTIVE", "COMPLETE", "ABORTED"] },
+            "objectives": { "type": "array", "items": { "type": "string" } },
+            "requirementIds": { "type": "array", "items": { "type": "string" } },
+            "testArticleIds": { "type": "array", "items": { "type": "string" } },
+            "rangeSlotIds": { "type": "array", "items": { "type": "string" } },
+            "instrumentationManifest": { "type": "array", "items": { "type": "object" } },
+            "dataSetUris": { "type": "array", "items": { "type": "string" } }
+          }
+        }
+      }
+    },
+    "capacityModel": {
+      "type": "object",
+      "description": "Range capacity and coverage feasibility computed by the campaign digital twin.",
+      "properties": {
+        "feasible": { "type": "boolean" },
+        "telemetryCoverage": { "type": "object", "additionalProperties": true },
+        "conflicts": { "type": "array", "items": { "type": "string" } },
+        "alternatives": { "type": "array", "items": { "type": "object" } }
+      }
+    },
+    "optimizationObjective": {
+      "type": "object",
+      "description": "Active-learning objective used to select the next most-informative test (PSDD 9.6).",
+      "properties": {
+        "method": { "type": "string", "enum": ["EXPECTED_INFORMATION_GAIN", "VARIANCE_REDUCTION", "COVERAGE_GREEDY", "MANUAL"] },
+        "targetRequirementIds": { "type": "array", "items": { "type": "string" } },
+        "score": { "type": "number" }
+      }
+    }
+  }
+}

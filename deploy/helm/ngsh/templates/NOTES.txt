@@ -1,0 +1,89 @@
+{{/*
+================================================================================
+NGSH — Helm release notes
+================================================================================
+*/}}
+{{- $v := include "ngsh.effectiveValues" . | fromYaml }}
+NGSH platform {{ $v.appVersion }} — release "{{ .Release.Name }}"
+Namespace: {{ $v.releaseNamespace }}
+Deployment profile: {{ $v.activeProfile }}
+Zone: {{ $v.global.zone }}   Environment: {{ $v.global.environment }}
+Classification level: {{ $v.config.classificationLevel }}   Tenant: {{ $v.config.tenant }}
+
+Services deployed:
+{{- range $key, $svc := $v.services }}
+{{- if $svc.enabled }}
+{{- $hpa := include "ngsh.svcAutoscaling" (dict "v" $v "svc" $svc) | fromYaml }}
+  {{ printf "%-16s" $svc.name }} port {{ $svc.port }}   replicas {{ if $hpa.enabled }}auto (HPA {{ $hpa.minReplicas }}-{{ $hpa.maxReplicas }}){{ else }}{{ $svc.replicaCount }}{{ end }}   image {{ include "ngsh.image" (dict "v" $v "svc" $svc) }}
+{{- end }}
+{{- end }}
+
+{{- if not $v.ingress.enabled }}
+
+There is no ingress in this profile. Reach the console with:
+
+  kubectl --namespace {{ $v.releaseNamespace }} port-forward \
+    svc/{{ include "ngsh.serviceObjectName" (dict "ctx" $v "key" "web") }} 8080:{{ (index $v.services "web").port }}
+
+  then open http://127.0.0.1:8080
+{{- else }}
+
+Console ingress hosts:
+{{- range $host := $v.ingress.hosts }}
+  http{{ if $v.ingress.tls }}s{{ end }}://{{ $host.host }}
+{{- end }}
+  (ingress class: {{ $v.ingress.className | default "<default>" }})
+  Confirm this class is INTERNAL before using it in an accredited zone.
+{{- end }}
+
+Verify the release:
+
+  helm --namespace {{ $v.releaseNamespace }} test {{ .Release.Name }} --logs
+
+The test pod probes {{ (index $v.services $v.tests.service).name }}:{{ (index $v.services $v.tests.service).port }}{{ $v.tests.path }} from inside the cluster.
+
+Check that every pod is ready:
+
+  kubectl --namespace {{ $v.releaseNamespace }} get pods -l app.kubernetes.io/part-of=ngsh
+
+Watch the fabric's health:
+
+  kubectl --namespace {{ $v.releaseNamespace }} logs -l ngsh.io/service=fabric-service -f
+
+{{- if $v.serviceAccount.workloadIdentity.enabled }}
+
+Workload identity is ENABLED. The pods run as the service account
+"{{ include "ngsh.podServiceAccountName" $v }}" and receive a projected token for
+audience "{{ $v.serviceAccount.workloadIdentity.audience }}" at
+{{ $v.serviceAccount.workloadIdentity.tokenMountPath }}/token.
+{{- else }}
+
+Workload identity is disabled. The pods run as "{{ include "ngsh.serviceAccountName" $v }}"
+with no API token mounted. Enable serviceAccount.workloadIdentity.enabled if the
+platform must authenticate to an external identity provider.
+{{- end }}
+
+{{- if $v.pod.hostNetwork }}
+
+NOTE: host networking is enabled for this profile. The pods bind the node's
+own interfaces, and the DNS policy is {{ $v.pod.dnsPolicy }}.
+{{- end }}
+
+{{- if eq $v.activeProfile "edge" }}
+
+NOTE: this is the EDGE profile. There is no connection to the central fabric.
+Data leaves the annex only through a sanctioned store-and-forward
+reconciliation. See deploy/README.md.
+{{- end }}
+
+{{- if not $v.existingSecret }}
+
+WARNING: this release was rendered from `values.secrets`, whose defaults are
+PLACEHOLDERS. Do not promote this release outside a local environment.
+Install with `existingSecret` pointing at a Secret provisioned by the platform
+secret manager before using this release in an accredited zone.
+{{- else }}
+
+Secrets are referenced from the pre-existing Secret "{{ $v.existingSecret }}".
+No secret material is stored in this release.
+{{- end }}

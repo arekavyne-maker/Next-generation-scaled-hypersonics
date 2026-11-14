@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ngsh.mil/contracts/events/entity.created.schema.json",
+  "title": "entity.created",
+  "description": "A new entity was created in the shared ontology. The entity body is embedded in the payload so that the event log alone can rebuild every projection.",
+  "type": "object",
+  "required": ["entity"],
+  "additionalProperties": false,
+  "properties": {
+    "entity": {
+      "type": "object",
+      "required": ["id", "type", "version", "createdAt", "updatedAt", "tenant"],
+      "properties": {
+        "id": { "type": "string" },
+        "type": { "type": "string" },
+        "tenant": { "type": "string" },
+        "program": { "type": "string" },
+        "version": { "type": "integer", "minimum": 1 },
+        "classification": { "$ref": "https://ngsh.mil/contracts/ontology/common.schema.json#/$defs/Classification" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" },
+        "createdBy": { "type": "string" },
+        "updatedBy": { "type": "string" },
+        "provenance": { "$ref": "https://ngsh.mil/contracts/ontology/common.schema.json#/$defs/Provenance" },
+        "labels": { "type": "object", "additionalProperties": { "type": "string" } },
+        "annotations": { "type": "object", "additionalProperties": { "type": "string" } },
+        "deleted": { "type": "boolean" },
+        "attributes": { "type": "object" }
+      }
+    }
+  }
+}

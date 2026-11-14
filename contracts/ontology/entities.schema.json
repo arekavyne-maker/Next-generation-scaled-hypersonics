@@ -1,0 +1,428 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ngsh.mil/contracts/ontology/entities.schema.json",
+  "title": "NGSH Core Ontology Entities",
+  "description": "The 23 canonical entity types of the NGSH shared ontology (PSDD 6.1). These types are deliberately domain-neutral enough to serve both mission sides: the same 'Part' node traces a U.S. CMC article from powder to flight, and the same 'TestResult' node holds a flight campaign outcome or a wind-tunnel run. Domain-specific attributes live in 'attributes'; the shared header is always the NGSH EntityHeader.",
+  "type": "object",
+  "required": ["id", "type", "version", "createdAt", "updatedAt", "tenant"],
+  "properties": {
+    "id": { "$ref": "https://ngsh.mil/contracts/ontology/common.schema.json#/$defs/EntityId" },
+    "type": { "type": "string" },
+    "tenant": { "type": "string" },
+    "program": { "type": ["string", "null"] },
+    "version": { "type": "integer", "minimum": 1 },
+    "classification": { "$ref": "https://ngsh.mil/contracts/ontology/common.schema.json#/$defs/Classification" },
+    "createdAt": { "type": "string", "format": "date-time" },
+    "updatedAt": { "type": "string", "format": "date-time" },
+    "createdBy": { "type": ["string", "null"] },
+    "updatedBy": { "type": ["string", "null"] },
+    "provenance": {
+      "anyOf": [
+        { "$ref": "https://ngsh.mil/contracts/ontology/common.schema.json#/$defs/Provenance" },
+        { "type": "null" }
+      ]
+    },
+    "labels": { "type": "object", "additionalProperties": { "type": "string" } },
+    "annotations": { "type": "object", "additionalProperties": { "type": "string" } },
+    "deleted": { "type": "boolean" },
+    "attributes": {
+      "type": "object",
+      "description": "Type-specific body. Validated against the matching $def in this schema."
+    },
+    "relations": {
+      "type": "array",
+      "items": { "$ref": "https://ngsh.mil/contracts/ontology/relations.schema.json" }
+    }
+  },
+  "oneOf": [
+    { "properties": { "type": { "const": "System" }, "attributes": { "$ref": "#/$defs/SystemAttributes" } } },
+    { "properties": { "type": { "const": "Variant" }, "attributes": { "$ref": "#/$defs/VariantAttributes" } } },
+    { "properties": { "type": { "const": "Subsystem" }, "attributes": { "$ref": "#/$defs/SubsystemAttributes" } } },
+    { "properties": { "type": { "const": "Part" }, "attributes": { "$ref": "#/$defs/PartAttributes" } } },
+    { "properties": { "type": { "const": "Material" }, "attributes": { "$ref": "#/$defs/MaterialAttributes" } } },
+    { "properties": { "type": { "const": "ProcessPlan" }, "attributes": { "$ref": "#/$defs/ProcessPlanAttributes" } } },
+    { "properties": { "type": { "const": "ProcessRun" }, "attributes": { "$ref": "#/$defs/ProcessRunAttributes" } } },
+    { "properties": { "type": { "const": "TestArticle" }, "attributes": { "$ref": "#/$defs/TestArticleAttributes" } } },
+    { "properties": { "type": { "const": "TestCampaign" }, "attributes": { "$ref": "#/$defs/TestCampaignAttributes" } } },
+    { "properties": { "type": { "const": "TestResult" }, "attributes": { "$ref": "#/$defs/TestResultAttributes" } } },
+    { "properties": { "type": { "const": "Requirement" }, "attributes": { "$ref": "#/$defs/RequirementAttributes" } } },
+    { "properties": { "type": { "const": "Interface" }, "attributes": { "$ref": "#/$defs/InterfaceAttributes" } } },
+    { "properties": { "type": { "const": "Model" }, "attributes": { "$ref": "#/$defs/ModelAttributes" } } },
+    { "properties": { "type": { "const": "ThreatSystem" }, "attributes": { "$ref": "#/$defs/ThreatSystemAttributes" } } },
+    { "properties": { "type": { "const": "ThreatObservation" }, "attributes": { "$ref": "#/$defs/ThreatObservationAttributes" } } },
+    { "properties": { "type": { "const": "EngagementScenario" }, "attributes": { "$ref": "#/$defs/EngagementScenarioAttributes" } } },
+    { "properties": { "type": { "const": "Supplier" }, "attributes": { "$ref": "#/$defs/SupplierAttributes" } } },
+    { "properties": { "type": { "const": "PartProvenance" }, "attributes": { "$ref": "#/$defs/PartProvenanceAttributes" } } },
+    { "properties": { "type": { "const": "Skill" }, "attributes": { "$ref": "#/$defs/SkillAttributes" } } },
+    { "properties": { "type": { "const": "Credential" }, "attributes": { "$ref": "#/$defs/CredentialAttributes" } } },
+    { "properties": { "type": { "const": "Person" }, "attributes": { "$ref": "#/$defs/PersonAttributes" } } },
+    { "properties": { "type": { "const": "Facility" }, "attributes": { "$ref": "#/$defs/FacilityAttributes" } } },
+    { "properties": { "type": { "const": "RangeSlot" }, "attributes": { "$ref": "#/$defs/RangeSlotAttributes" } } }
+  ],
+  "$defs": {
+    "SystemAttributes": {
+      "type": "object",
+      "required": ["name", "lifecycleState"],
+      "properties": {
+        "name": { "type": "string" },
+        "systemType": { "type": "string", "enum": ["HYPERSONIC_WEAPON", "BOOSTER", "PAYLOAD", "GNC", "AIRFRAME", "TPS", "SENSOR", "EFFECTOR", "C2", "GROUND_SYSTEM", "ENTERPRISE_SERVICE"] },
+        "mission": { "type": "string" },
+        "lifecycleState": { "type": "string", "enum": ["CONCEPT", "DEVELOPMENT", "QUALIFICATION", "PRODUCTION", "FIELDED", "RETIRED"] },
+        "parentSystemId": { "$ref": "https://ngsh.mil/contracts/ontology/common.schema.json#/$defs/EntityId" },
+        "interfaceIds": { "type": "array", "items": { "$ref": "https://ngsh.mil/contracts/ontology/common.schema.json#/$defs/EntityId" } },
+        "costEstimate": { "$ref": "https://ngsh.mil/contracts/ontology/common.schema.json#/$defs/CostEstimate" },
+        "platform": { "type": "string", "description": "Modularity platform / family-of-systems family tag (PSDD A-2)." }
+      }
+    },
+    "VariantAttributes": {
+      "type": "object",
+      "required": ["systemId", "variantId"],
+      "properties": {
+        "systemId": { "$ref": "https://ngsh.mil/contracts/ontology/common.schema.json#/$defs/EntityId" },
+        "variantId": { "type": "string", "description": "Variant designation, e.g. 'HGV-B1'." },
+        "configurationVersion": { "type": "string" },
+        "distinguishingCharacteristics": { "type": "array", "items": { "type": "string" } },
+        "familyId": { "type": "string", "description": "Common-core family identifier; drives variant auto-generation." }
+      }
+    },
+    "SubsystemAttributes": {
+      "type": "object",
+      "required": ["parentSystemId", "name"],
+      "properties": {
+        "parentSystemId": { "$ref": "https://ngsh.mil/contracts/ontology/common.schema.json#/$defs/EntityId" },
+        "name": { "type": "string" },
+        "subsystemType": { "type": "string" },
+        "interfaceIds": { "type": "array", "items": { "$ref": "https://ngsh.mil/contracts/ontology/common.schema.json#/$defs/EntityId" } },
+        "maturity": { "type": "string", "enum": ["TRL_1", "TRL_2", "TRL_3", "TRL_4", "TRL_5", "TRL_6", "TRL_7", "TRL_8", "TRL_9", "UNSPECIFIED"] }
+      }
+    },
+    "PartAttributes": {
+      "type": "object",
+      "required": ["partNumber", "name"],
+      "properties": {
+        "partNumber": { "type": "string" },
+        "name": { "type": "string" },
+        "partType": { "type": "string", "enum": ["CMC_NOSECAP", "PREPREG", "BILLET", "STRUCTURAL", "AVIONICS", "PROPULSION", "TPS", "FASTENER", "CONSUMABLE", "OTHER"] },
+        "revision": { "type": "string" },
+        "criticality": { "type": "string", "enum": ["CRITICAL", "KEY", "STANDARD", "LOW"] },
+        "materialIds": { "type": "array", "items": { "$ref": "https://ngsh.mil/contracts/ontology/common.schema.json#/$defs/EntityId" } },
+        "isSingleSource": { "type": "boolean" },
+        "exportControlled": { "type": "boolean", "default": false, "description": "ITAR/EAR jurisdiction flag; drives export-review workflow." },
+        "unitCost": { "$ref": "https://ngsh.mil/contracts/ontology/common.schema.json#/$defs/CostEstimate" },
+        "processPlanIds": { "type": "array", "items": { "$ref": "https://ngsh.mil/contracts/ontology/common.schema.json#/$defs/EntityId" } },
+        "leadTimeDays": { "type": "integer" }
+      }
+    },
+    "MaterialAttributes": {
+      "type": "object",
+      "required": ["materialType", "lotNumber"],
+      "properties": {
+        "materialType": { "type": "string", "enum": ["CMC_PREG", "CMC_BILLET", "CMC_NOSECAP", "METAL", "COATING", "ADHESIVE", "OTHER"] },
+        "lotNumber": { "type": "string" },
+        "batchId": { "type": "string" },
+        "supplierId": { "$ref": "https://ngsh.mil/contracts/ontology/common.schema.json#/$defs/EntityId" },
+        "processPlanIds": { "type": "array", "items": { "$ref": "https://ngsh.mil/contracts/ontology/common.schema.json#/$defs/EntityId" } },
+        "characterizationIds": { "type": "array", "items": { "$ref": "https://ngsh.mil/contracts/ontology/common.schema.json#/$defs/EntityId" } },
+        "certifications": { "type": "array", "items": { "type": "string" } },
+        "microstructureSummary": { "type": "string" },
+        "receivedAt": { "type": "string", "format": "date-time" }
+      }
+    },
+    "ProcessPlanAttributes": {
+      "type": "object",
+      "required": ["name", "processType", "revision", "operations"],
+      "properties": {
+        "name": { "type": "string" },
+        "processType": { "type": "string", "enum": ["FILM_LAMINATION", "AUTOCLAVE", "PYROLYSIS", "HIP", "MACHINING", "COATING", "BRAZE", "NDT", "ASSEMBLY", "OTHER"] },
+        "revision": { "type": "string" },
+        "operations": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["opId", "name"],
+            "properties": {
+              "opId": { "type": "string" },
+              "name": { "type": "string" },
+              "parameters": { "type": "object", "additionalProperties": true },
+              "specLimits": { "type": "object", "additionalProperties": true },
+              "requiredSkillIds": { "type": "array", "items": { "$ref": "https://ngsh.mil/contracts/ontology/common.schema.json#/$defs/EntityId" } },
+              "equipmentTags": { "type": "array", "items": { "type": "string" } }
+            }
+          }
+        },
+        "qualificationStatus": { "type": "string", "enum": ["QUALIFIED", "QUALIFICATION_IN_PROGRESS", "NOT_QUALIFIED", "EXPIRED"] },
+        "qualifiedFacilityIds": { "type": "array", "items": { "$ref": "https://ngsh.mil/contracts/ontology/common.schema.json#/$defs/EntityId" } }
+      }
+    },
+    "ProcessRunAttributes": {
+      "type": "object",
+      "required": ["processPlanId", "startedAt"],
+      "properties": {
+        "processPlanId": { "$ref": "https://ngsh.mil/contracts/ontology/common.schema.json#/$defs/EntityId" },
+        "materialId": { "$ref": "https://ngsh.mil/contracts/ontology/common.schema.json#/$defs/EntityId" },
+        "partId": { "$ref": "https://ngsh.mil/contracts/ontology/common.schema.json#/$defs/EntityId" },
+        "facilityId": { "$ref": "https://ngsh.mil/contracts/ontology/common.schema.json#/$defs/EntityId" },
+        "startedAt": { "type": "string", "format": "date-time" },
+        "endedAt": { "type": "string", "format": "date-time" },
+        "measuredParameters": { "type": "object", "additionalProperties": true },
+        "measuredSeries": { "type": "array", "items": { "$ref": "https://ngsh.mil/contracts/ontology/common.schema.json#/$defs/Measurement" } },
+        "operatorId": { "$ref": "https://ngsh.mil/contracts/ontology/common.schema.json#/$defs/EntityId" },
+        "disposition": { "type": "string", "enum": ["ACCEPTED", "REWORK", "SCRAP", "PENDING"] },
+        "nonconformanceId": { "type": "string" },
+        "driftFlags": { "type": "array", "items": { "type": "string" }, "description": "Process drift detected against the characterized envelope." }
+      }
+    },
+    "TestArticleAttributes": {
+      "type": "object",
+      "required": ["serialNumber", "asBuiltStatus"],
+      "properties": {
+        "serialNumber": { "type": "string" },
+        "variantId": { "$ref": "https://ngsh.mil/contracts/ontology/common.schema.json#/$defs/EntityId" },
+        "partIds": { "type": "array", "items": { "$ref": "https://ngsh.mil/contracts/ontology/common.schema.json#/$defs/EntityId" } },
+        "buildConfigurationId": { "type": "string", "description": "Configuration baseline that pins every part revision and software build." },
+        "asBuiltStatus": { "type": "string", "enum": ["AS_BUILT", "AS_DESIGNED", "DEVIATED"], "description": "Configuration fidelity to the design intent." },
+        "deviations": { "type": "array", "items": { "type": "object" } }
+      }
+    },
+    "TestCampaignAttributes": {
+      "type": "object",
+      "required": ["name", "campaignType", "status"],
+      "properties": {
+        "name": { "type": "string" },
+        "campaignType": { "type": "string", "enum": ["GROUND", "WIND_TUNNEL", "SLED", "FLIGHT", "ENGINE", "MATERIAL_COUPOON", "STRUCTURAL", "QUALIFICATION"] },
+        "status": { "type": "string", "enum": ["PLANNED", "ACTIVE", "COMPLETE", "ABORTED"] },
+        "objectives": { "type": "array", "items": { "type": "string" } },
+        "requirementIds": { "type": "array", "items": { "$ref": "https://ngsh.mil/contracts/ontology/common.schema.json#/$defs/EntityId" } },
+        "testArticleIds": { "type": "array", "items": { "$ref": "https://ngsh.mil/contracts/ontology/common.schema.json#/$defs/EntityId" } },
+        "rangeSlotIds": { "type": "array", "items": { "$ref": "https://ngsh.mil/contracts/ontology/common.schema.json#/$defs/EntityId" } },
+        "instrumentationManifest": { "type": "array", "items": { "type": "object" } },
+        "dataSetUris": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "TestResultAttributes": {
+      "type": "object",
+      "required": ["testMethod", "outcome"],
+      "properties": {
+        "campaignId": { "$ref": "https://ngsh.mil/contracts/ontology/common.schema.json#/$defs/EntityId" },
+        "testArticleId": { "$ref": "https://ngsh.mil/contracts/ontology/common.schema.json#/$defs/EntityId" },
+        "testMethod": { "type": "string" },
+        "outcome": { "type": "string", "enum": ["PASS", "FAIL", "MARGINAL", "INCONCLUSIVE", "NOT_RUN"] },
+        "measurements": { "type": "array", "items": { "$ref": "https://ngsh.mil/contracts/ontology/common.schema.json#/$defs/Measurement" } },
+        "limits": { "type": "object", "additionalProperties": true },
+        "configurationSnapshot": { "type": "object", "additionalProperties": true, "description": "Full configuration context: variant, lot, software build, instrument calibration." },
+        "dataSetUris": { "type": "array", "items": { "type": "string" } },
+        "modelVersionIds": { "type": "array", "items": { "$ref": "https://ngsh.mil/contracts/ontology/common.schema.json#/$defs/EntityId" } },
+        "baselineId": { "type": "string" },
+        "anomalyFlags": { "type": "array", "items": { "type": "string" } },
+        "reviewedBy": { "type": "string", "description": "Human reviewer; required for safety-relevant results." }
+      }
+    },
+    "RequirementAttributes": {
+      "type": "object",
+      "required": ["statement", "verificationMethod", "status"],
+      "properties": {
+        "statement": { "type": "string" },
+        "reqType": { "type": "string", "enum": ["FUNCTIONAL", "PERFORMANCE", "INTERFACE", "DERIVED", "QUALITY", "SAFETY", "SECURITY", "CONSTRAINT"] },
+        "parentId": { "$ref": "https://ngsh.mil/contracts/ontology/common.schema.json#/$defs/EntityId" },
+        "verificationMethod": { "type": "string", "enum": ["TEST", "ANALYSIS", "INSPECTION", "DEMONSTRATION", "CERTIFICATION", "TOLERANCE"] },
+        "status": { "type": "string", "enum": ["DRAFT", "BASELINED", "ALLOCATED", "IMPLEMENTED", "VERIFIED", "INVALID"] },
+        "verificationStatus": { "type": "string", "enum": ["NOT_STARTED", "IN_PROGRESS", "PARTIAL", "COMPLETE", "NOT_APPLICABLE"] },
+        "allocatedToIds": { "type": "array", "items": { "$ref": "https://ngsh.mil/contracts/ontology/common.schema.json#/$defs/EntityId" } },
+        "acceptanceCriteria": { "type": "string" },
+        "text": { "type": "string", "description": "Verbatim requirement text; distinct from the normalized statement." },
+        "costDrivers": { "type": "array", "items": { "type": "string" }, "description": "Cost impacts traced from this requirement (PSDD H-3)." }
+      }
+    },
+    "InterfaceAttributes": {
+      "type": "object",
+      "required": ["name", "fromSystemId", "toSystemId"],
+      "properties": {
+        "name": { "type": "string" },
+        "fromSystemId": { "$ref": "https://ngsh.mil/contracts/ontology/common.schema.json#/$defs/EntityId" },
+        "toSystemId": { "$ref": "https://ngsh.mil/contracts/ontology/common.schema.json#/$defs/EntityId" },
+        "icdVersion": { "type": "string" },
+        "dataItems": { "type": "array", "items": { "type": "object" } },
+        "characteristics": { "type": "object", "additionalProperties": true, "description": "Rate, latency, timing, envelope." }
+      }
+    },
+    "ModelAttributes": {
+      "type": "object",
+      "required": ["name", "modelType", "modelVersion"],
+      "properties": {
+        "name": { "type": "string" },
+        "modelType": { "type": "string", "enum": ["AERODYNAMIC", "THERMAL", "STRUCTURAL", "TRAJECTORY", "GNC", "THREAT_KINEMATIC", "DETECTION", "TRACKING", "ENGAGEMENT", "PRODUCTION_SURGE", "SURROGATE_ML", "OTHER"] },
+        "modelVersion": { "type": "string" },
+        "parentModelId": { "$ref": "https://ngsh.mil/contracts/ontology/common.schema.json#/$defs/EntityId" },
+        "fidelity": { "$ref": "https://ngsh.mil/contracts/ontology/common.schema.json#/$defs/FidelityScore" },
+        "codeRef": { "type": "string", "description": "Versioned source reference for the model implementation." },
+        "inputSchemaRef": { "type": "string" },
+        "outputSchemaRef": { "type": "string" },
+        "modelCard": { "type": "string", "description": "Pointer to the model card artifact; mandatory for ML models (PSDD 9)." },
+        "runtime": { "type": "object", "additionalProperties": true },
+        "approvedForUse": { "type": "boolean", "default": false, "description": "Human approval gate for safety-relevant predictions." }
+      }
+    },
+    "ThreatSystemAttributes": {
+      "type": "object",
+      "required": ["designation", "threatClass"],
+      "properties": {
+        "designation": { "type": "string" },
+        "threatClass": { "type": "string", "enum": ["HGV", "HGV_MANEUVERABLE", "HCM", "BOOST_GLIDE", "BOOSTED_GLIDE", "CRUISE_MISSILE", "UNKNOWN"] },
+        "kinematicProfile": { "type": "object", "additionalProperties": true, "description": "Mach, altitude, range, acceleration envelope." },
+        "characteristics": { "type": "array", "items": { "type": "object" } },
+        "confidence": { "type": "number", "minimum": 0, "maximum": 1 },
+        "observationIds": { "type": "array", "items": { "$ref": "https://ngsh.mil/contracts/ontology/common.schema.json#/$defs/EntityId" } },
+        "modelVersionIds": { "type": "array", "items": { "$ref": "https://ngsh.mil/contracts/ontology/common.schema.json#/$defs/EntityId" } }
+      }
+    },
+    "ThreatObservationAttributes": {
+      "type": "object",
+      "required": ["observationTime"],
+      "properties": {
+        "observationTime": { "type": "string", "format": "date-time" },
+        "sensorIds": { "type": "array", "items": { "type": "string" } },
+        "measurements": { "type": "array", "items": { "$ref": "https://ngsh.mil/contracts/ontology/common.schema.json#/$defs/Measurement" } },
+        "trackQuality": { "type": "number", "minimum": 0, "maximum": 1 },
+        "source": { "type": "string" },
+        "rawUri": { "type": "string" },
+        "sensorType": { "type": "string", "enum": ["SPACE_IR", "SPACE_EO", "GROUND_RADAR", "AIRBORNE_IR", "AEW", "GROUND_EO", "OTHER"] }
+      }
+    },
+    "EngagementScenarioAttributes": {
+      "type": "object",
+      "required": ["name"],
+      "properties": {
+        "name": { "type": "string" },
+        "threatSystemIds": { "type": "array", "items": { "$ref": "https://ngsh.mil/contracts/ontology/common.schema.json#/$defs/EntityId" } },
+        "defensiveArchitecture": { "type": "string", "description": "Architecture under evaluation, e.g. 'HBTSS-cued-Aegis-GPI'." },
+        "sensorChain": { "type": "array", "items": { "type": "object" } },
+        "effectorChain": { "type": "array", "items": { "type": "object" } },
+        "timeline": { "type": "object", "additionalProperties": true },
+        "monteCarloConfig": {
+          "type": "object",
+          "properties": {
+            "runs": { "type": "integer", "minimum": 1 },
+            "seed": { "type": "integer" },
+            "confidenceLevel": { "type": "number", "minimum": 0, "maximum": 1 }
+          }
+        },
+        "resultsSummary": { "type": "object", "additionalProperties": true, "description": "Detection-to-custody time, Pk, single-shot Pk." }
+      }
+    },
+    "SupplierAttributes": {
+      "type": "object",
+      "required": ["name", "tier"],
+      "properties": {
+        "name": { "type": "string" },
+        "tier": { "type": "integer", "minimum": 1 },
+        "riskScore": { "type": "number", "minimum": 0, "maximum": 1 },
+        "capabilities": { "type": "array", "items": { "type": "string" } },
+        "certifications": { "type": "array", "items": { "type": "string" } },
+        "leadTimeDays": { "type": "integer" },
+        "dependencies": { "type": "array", "items": { "$ref": "https://ngsh.mil/contracts/ontology/common.schema.json#/$defs/EntityId" } },
+        "facilityIds": { "type": "array", "items": { "$ref": "https://ngsh.mil/contracts/ontology/common.schema.json#/$defs/EntityId" } },
+        "domesticContent": { "type": "number", "minimum": 0, "maximum": 1 },
+        "exportControlled": { "type": "boolean" }
+      }
+    },
+    "PartProvenanceAttributes": {
+      "type": "object",
+      "required": ["partId", "chainOfCustody"],
+      "properties": {
+        "partId": { "$ref": "https://ngsh.mil/contracts/ontology/common.schema.json#/$defs/EntityId" },
+        "chainOfCustody": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["fromNodeId", "toNodeId", "transferredAt"],
+            "properties": {
+              "fromNodeId": { "$ref": "https://ngsh.mil/contracts/ontology/common.schema.json#/$defs/EntityId" },
+              "toNodeId": { "$ref": "https://ngsh.mil/contracts/ontology/common.schema.json#/$defs/EntityId" },
+              "transferredAt": { "type": "string", "format": "date-time" },
+              "quantity": { "type": "number" },
+              "transferType": { "type": "string", "enum": ["RECEIPT", "PROCESSING", "TRANSFER", "SHIPMENT", "CONSIGNMENT", "SCRAP"] },
+              "custodian": { "type": "string" }
+            }
+          }
+        },
+        "materialIds": { "type": "array", "items": { "$ref": "https://ngsh.mil/contracts/ontology/common.schema.json#/$defs/EntityId" } },
+        "processRunIds": { "type": "array", "items": { "$ref": "https://ngsh.mil/contracts/ontology/common.schema.json#/$defs/EntityId" } }
+      }
+    },
+    "SkillAttributes": {
+      "type": "object",
+      "required": ["name", "code", "category"],
+      "properties": {
+        "name": { "type": "string" },
+        "code": { "type": "string", "description": "SDO/O*NET-style code where available." },
+        "category": { "type": "string", "enum": ["MANUFACTURING", "QUALITY", "TEST", "ENGINEERING", "ANALYSIS", "OPERATIONS", "SUPERVISION"] },
+        "level": { "type": "integer", "minimum": 1, "maximum": 5 },
+        "qualificationCriteria": { "type": "array", "items": { "type": "string" } },
+        "clearanceRequired": { "type": "string" }
+      }
+    },
+    "CredentialAttributes": {
+      "type": "object",
+      "required": ["personId", "skillId", "issuedAt", "status"],
+      "properties": {
+        "personId": { "$ref": "https://ngsh.mil/contracts/ontology/common.schema.json#/$defs/EntityId" },
+        "skillId": { "$ref": "https://ngsh.mil/contracts/ontology/common.schema.json#/$defs/EntityId" },
+        "issuedAt": { "type": "string", "format": "date-time" },
+        "expiresAt": { "type": "string", "format": "date-time" },
+        "issuingAuthority": { "type": "string" },
+        "status": { "type": "string", "enum": ["ACTIVE", "EXPIRED", "SUSPENDED", "REVOKED"] },
+        "evidenceRefs": { "type": "array", "items": { "$ref": "https://ngsh.mil/contracts/ontology/common.schema.json#/$defs/EntityId" } },
+        "workAuthorizationIds": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "PersonAttributes": {
+      "type": "object",
+      "required": ["employeeId", "name", "citizenship", "clearanceLevel"],
+      "properties": {
+        "employeeId": { "type": "string" },
+        "name": { "type": "string" },
+        "citizenship": { "type": "string", "enum": ["US", "ALLIED", "FOREIGN", "UNKNOWN"] },
+        "clearanceLevel": { "type": "string", "enum": ["NONE", "SECRET", "TOP SECRET", "SCI-CLEARED"] },
+        "clearanceExpiry": { "type": "string", "format": "date-time" },
+        "skillIds": { "type": "array", "items": { "$ref": "https://ngsh.mil/contracts/ontology/common.schema.json#/$defs/EntityId" } },
+        "role": { "type": "string" },
+        "organization": { "type": "string" },
+        "region": { "type": "string", "description": "Workforce geography for regional gap analysis (PSDD E-4)." }
+      }
+    },
+    "FacilityAttributes": {
+      "type": "object",
+      "required": ["name", "facilityType"],
+      "properties": {
+        "name": { "type": "string" },
+        "facilityType": { "type": "string", "enum": ["MANUFACTURING", "TEST", "RANGE", "LABORATORY", "WAREHOUSE", "TRAINING", "OTHER"] },
+        "capabilities": { "type": "array", "items": { "type": "string" } },
+        "accreditations": { "type": "array", "items": { "type": "string" } },
+        "securityLevel": { "type": "string", "enum": ["UNCLASSIFIED", "CUI", "SECRET", "TOP SECRET"] },
+        "surgeCapacity": {
+          "type": "object",
+          "properties": {
+            "baselineUnitsPerYear": { "type": "number" },
+            "surgeUnitsPerYear": { "type": "number" },
+            "timeToSurgeDays": { "type": "integer" }
+          }
+        },
+        "resourceIds": { "type": "array", "items": { "type": "string" } },
+        "constrainedBySkillIds": { "type": "array", "items": { "$ref": "https://ngsh.mil/contracts/ontology/common.schema.json#/$defs/EntityId" } }
+      }
+    },
+    "RangeSlotAttributes": {
+      "type": "object",
+      "required": ["facilityId", "start", "end"],
+      "properties": {
+        "facilityId": { "$ref": "https://ngsh.mil/contracts/ontology/common.schema.json#/$defs/EntityId" },
+        "start": { "type": "string", "format": "date-time" },
+        "end": { "type": "string", "format": "date-time" },
+        "campaignId": { "$ref": "https://ngsh.mil/contracts/ontology/common.schema.json#/$defs/EntityId" },
+        "instrumentation": { "type": "array", "items": { "type": "object" } },
+        "telemetryCoverage": { "type": "object", "additionalProperties": true },
+        "status": { "type": "string", "enum": ["HELD", "REQUESTED", "CONFIRMED", "CANCELLED", "USED"] }
+      }
+    }
+  }
+}

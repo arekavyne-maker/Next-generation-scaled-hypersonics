@@ -1,0 +1,63 @@
+{{/*
+================================================================================
+NGSH — Horizontal pod autoscalers
+
+Rendered only for services that opt in (per-service `autoscaling.enabled`,
+which falls back to the global `autoscaling.enabled`).
+
+The IL5 profile turns this on for the fabric and the ontology service. The
+IL6 and edge profiles keep it off: a classified enclave runs on planned
+capacity and an edge annex is a single node.
+================================================================================
+*/}}
+{{- $v := include "ngsh.effectiveValues" . | fromYaml }}
+{{- range $key, $svc := $v.services }}
+{{- if $svc.enabled }}
+{{- $hpa := include "ngsh.svcAutoscaling" (dict "v" $v "svc" $svc) | fromYaml }}
+{{- if $hpa.enabled }}
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: {{ include "ngsh.serviceObjectName" (dict "ctx" $v "key" $key) }}
+  labels:
+    {{- include "ngsh.labels" $v | nindent 4 }}
+    app.kubernetes.io/component: {{ $key }}
+    ngsh.io/service: {{ $svc.name }}
+  annotations:
+    ngsh.io/deployment-profile: {{ $v.activeProfile | quote }}
+    {{- include "ngsh.commonAnnotations" $v | nindent 4 }}
+    {{- with $hpa.annotations }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: {{ include "ngsh.serviceObjectName" (dict "ctx" $v "key" $key) }}
+  minReplicas: {{ $hpa.minReplicas }}
+  maxReplicas: {{ $hpa.maxReplicas }}
+  metrics:
+    {{- if $hpa.targetCPUUtilizationPercentage }}
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: {{ $hpa.targetCPUUtilizationPercentage }}
+    {{- end }}
+    {{- if $hpa.targetMemoryUtilizationPercentage }}
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: {{ $hpa.targetMemoryUtilizationPercentage }}
+    {{- end }}
+  {{- with $hpa.behavior }}
+  behavior:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+{{- end }}
+{{- end }}
+{{- end }}

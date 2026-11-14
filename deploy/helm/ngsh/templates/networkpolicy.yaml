@@ -1,0 +1,129 @@
+{{/*
+================================================================================
+NGSH — Network policies
+
+One policy per service, default-deny in both directions. The rules grant:
+
+  ingress  from other NGSH pods (app.kubernetes.io/part-of: ngsh), and
+           optionally from an ingress controller namespace
+  egress   to other NGSH pods (every platform port),
+           to DNS (kube-system),
+           to the platform datastore (namespace selector + port),
+           optionally to the OTel collector (namespace selector + port),
+           optionally to an approved external CIDR list
+
+Everything else is denied. The edge profile narrows this further: no
+collector egress (telemetry is buffered locally) and no external egress.
+
+The rules are expressed with plain namespace/pod selectors and CIDRs. There is
+no provider-specific field anywhere in this file.
+================================================================================
+*/}}
+{{- $v := include "ngsh.effectiveValues" . | fromYaml }}
+{{- range $key, $svc := $v.services }}
+{{- if $svc.enabled }}
+{{- $npEnabled := $v.networkPolicy.enabled }}
+{{- if not (kindIs "invalid" $svc.networkPolicy.enabled) }}
+{{- $npEnabled = $svc.networkPolicy.enabled }}
+{{- end }}
+{{- if $npEnabled }}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "ngsh.serviceObjectName" (dict "ctx" $v "key" $key) }}
+  labels:
+    {{- include "ngsh.labels" $v | nindent 4 }}
+    app.kubernetes.io/component: {{ $key }}
+    ngsh.io/service: {{ $svc.name }}
+  annotations:
+    ngsh.io/deployment-profile: {{ $v.activeProfile | quote }}
+    {{- include "ngsh.commonAnnotations" $v | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "ngsh.selectorLabels" $v | nindent 6 }}
+      app.kubernetes.io/component: {{ $key }}
+      ngsh.io/service: {{ $svc.name }}
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/part-of: ngsh
+      ports:
+        - port: {{ $svc.port }}
+          protocol: TCP
+    {{- if $v.networkPolicy.allowIngressController }}
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: {{ $v.networkPolicy.ingressControllerNamespace }}
+      ports:
+        - port: {{ $svc.port }}
+          protocol: TCP
+    {{- end }}
+    {{- with $v.networkPolicy.extraIngress }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+    {{- with $svc.networkPolicy.extraIngress }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+  egress:
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/part-of: ngsh
+      ports:
+        {{- range $otherKey, $other := $v.services }}
+        - port: {{ $other.port }}
+          protocol: TCP
+        {{- end }}
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+      ports:
+        - port: 53
+          protocol: UDP
+        - port: 53
+          protocol: TCP
+    {{- if $v.networkPolicy.database.enabled }}
+    - to:
+        - namespaceSelector:
+            {{- toYaml $v.networkPolicy.database.namespaceSelector | nindent 12 }}
+      ports:
+        - port: {{ $v.networkPolicy.database.port }}
+          protocol: TCP
+    {{- end }}
+    {{- if $v.networkPolicy.otel.enabled }}
+    - to:
+        - namespaceSelector:
+            {{- toYaml $v.networkPolicy.otel.namespaceSelector | nindent 12 }}
+      ports:
+        - port: {{ $v.networkPolicy.otel.port }}
+          protocol: TCP
+    {{- end }}
+    {{- if $v.networkPolicy.externalEgress }}
+    - to:
+        {{- if $v.networkPolicy.externalEgressCIDRs }}
+        {{- range $cidr := $v.networkPolicy.externalEgressCIDRs }}
+        - ipBlock:
+            cidr: {{ $cidr | quote }}
+        {{- end }}
+        {{- else }}
+        - ipBlock:
+            cidr: 0.0.0.0/0
+        {{- end }}
+    {{- end }}
+    {{- with $v.networkPolicy.extraEgress }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+    {{- with $svc.networkPolicy.extraEgress }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+{{- end }}
+{{- end }}
+{{- end }}

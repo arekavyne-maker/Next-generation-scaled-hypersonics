@@ -1,0 +1,49 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ngsh.mil/contracts/events/reconcile.conflict.recorded.schema.json",
+  "title": "reconcile.conflict.recorded",
+  "description": "An edge reconciliation conflict was detected and escalated. Conflicts are first-class, queryable records rather than only audit-ledger entries, because a conflict that is only visible in a ledger is a conflict nobody triages. Required by ADR-0006 Step 6.",
+  "type": "object",
+  "required": ["aggregateId", "conflictClass", "resolution"],
+  "additionalProperties": false,
+  "properties": {
+    "aggregateId": { "type": "string", "description": "The aggregate whose reconciliation could not be decided automatically." },
+    "aggregateType": { "type": "string" },
+    "conflictClass": {
+      "type": "string",
+      "enum": [
+        "immutable-conflict",
+        "gap",
+        "divergent-sequence",
+        "clock-skew",
+        "classification-violation",
+        "mutable-conflict"
+      ],
+      "description": "The class of conflict. Each class routes to a different escalation path (ADR-0006 Step 6)."
+    },
+    "resolution": {
+      "type": "string",
+      "enum": ["quarantined", "applied-deterministic-winner", "escalated", "rejected"],
+      "description": "What the platform did about it."
+    },
+    "winningEventId": { "type": ["string", "null"], "description": "The event that won, where a deterministic winner existed." },
+    "losingEventId": { "type": ["string", "null"], "description": "The event that lost, where a deterministic winner existed." },
+    "edgeNodeId": { "type": "string" },
+    "edgeLocalSequence": { "type": ["integer", "null"], "minimum": 1 },
+    "fabricSequence": { "type": ["integer", "null"], "minimum": 0 },
+    "reason": { "type": "string", "description": "Human-readable explanation of why the conflict could not be resolved automatically." },
+    "escalationTask": {
+      "type": "object",
+      "description": "The task raised for a human to resolve the conflict.",
+      "properties": {
+        "taskType": {
+          "type": "string",
+          "enum": ["safety-review", "data-completeness", "edge-incident", "security-review", "engineering-review"]
+        },
+        "assignedTo": { "type": "string", "description": "The role that owns the escalation." },
+        "raisedAt": { "type": "string", "format": "date-time" }
+      },
+      "additionalProperties": false
+    }
+  }
+}

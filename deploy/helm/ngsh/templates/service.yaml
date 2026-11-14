@@ -1,0 +1,40 @@
+{{/*
+================================================================================
+NGSH — Services
+
+One ClusterIP Service per enabled platform service. The Service name is
+<fullname>-<key>, and the DNS name the applications use is derived from it by
+the deployment template (NGSH_<KEY>_URL).
+================================================================================
+*/}}
+{{- $v := include "ngsh.effectiveValues" . | fromYaml }}
+{{- range $key, $svc := $v.services }}
+{{- if $svc.enabled }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "ngsh.serviceObjectName" (dict "ctx" $v "key" $key) }}
+  labels:
+    {{- include "ngsh.labels" $v | nindent 4 }}
+    app.kubernetes.io/component: {{ $key }}
+    ngsh.io/service: {{ $svc.name }}
+  annotations:
+    ngsh.io/deployment-profile: {{ $v.activeProfile | quote }}
+    {{- include "ngsh.commonAnnotations" $v | nindent 4 }}
+    {{- with $svc.service.annotations }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+spec:
+  type: {{ $svc.service.type }}
+  ports:
+    - name: http
+      port: {{ $svc.port }}
+      targetPort: http
+      protocol: TCP
+  selector:
+    {{- include "ngsh.selectorLabels" $v | nindent 4 }}
+    app.kubernetes.io/component: {{ $key }}
+    ngsh.io/service: {{ $svc.name }}
+{{- end }}
+{{- end }}

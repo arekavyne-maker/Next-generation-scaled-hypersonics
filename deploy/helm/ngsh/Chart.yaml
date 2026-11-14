@@ -1,0 +1,41 @@
+apiVersion: v2
+name: ngsh
+description: >-
+  Next-Generation Scaled Hypersonics (NGSH) platform — hybrid-first,
+  platform-agnostic deployment of the shared ontology, the event-sourced data
+  fabric, and the digital thread services.
+type: application
+
+# Chart version. Bumped on every chart change.
+version: 0.1.0
+
+# Default application version shipped with the chart. Overridden per service
+# with `services.<name>.image.tag`.
+appVersion: "0.1.0"
+
+kubeVersion: ">=1.25.0-0"
+
+home: https://example.gov/ngsh
+icon: https://example.gov/ngsh/assets/ngsh-icon.png
+
+sources:
+  - https://example.gov/ngsh/platform
+
+maintainers:
+  - name: NGSH Platform Team
+    email: ngsh-platform@example.gov
+
+annotations:
+  # No provider-specific tooling is referenced anywhere in this chart. These
+  # annotations are platform-level facts only.
+  ngsh.mil/classification-baseline: "IL5"
+  ngsh.mil/il6-profile-available: "true"
+  ngsh.mil/edge-profile-available: "true"
+  ngsh.mil/platform-neutral: "true"
+
+keywords:
+  - ngsh
+  - event-sourcing
+  - digital-thread
+  - hypersonics
+  - platform-agnostic

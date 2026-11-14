@@ -1,0 +1,1155 @@
+# =============================================================================
+# NGSH Helm values
+# =============================================================================
+# Platform-agnostic by construction. Every value here maps to a plain
+# Kubernetes object or a plain environment variable. There are no
+# cloud-provider CRDs, no provider-specific service fields, and no provider
+# SDKs anywhere in this chart.
+#
+# Four deployment profiles are defined under `deploymentProfiles`. Exactly one
+# is active at a time (`deploymentProfiles.activeProfile`), and its settings
+# are merged over the base values below:
+#
+#   local  developer laptop / CI
+#   il5    accredited cloud enclave (GovCloud, Azure Government, equivalent)
+#   il6    on-prem classified enclave (host network, dedicated storage)
+#   edge   segregated single-node annex at a factory floor or test range
+#
+# Render a profile with:
+#   helm template ngsh deploy/helm/ngsh --set deploymentProfiles.activeProfile=il6
+#
+# Every value is documented in deploy/helm/ngsh/README.md.
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# Global
+# -----------------------------------------------------------------------------
+global:
+  # Registry prefix applied to every service image that does not set its own.
+  # Leave empty to use the image repository verbatim.
+  imageRegistry: ""
+  imagePullSecrets: []
+  imagePullPolicy: IfNotPresent
+  # Labels and annotations added to every rendered object.
+  commonLabels: {}
+  commonAnnotations: {}
+  # Deployment environment name. Recorded in telemetry and in the deployment
+  # profile label.
+  environment: "dev"
+  # Zone label. One of: central-fabric, accredited-enclave, classified-enclave,
+  # edge-annex.
+  zone: "local-dev"
+  # Default StorageClass for persistent volumes that do not name their own.
+  # Empty means "use the cluster default StorageClass".
+  storageClass: ""
+
+nameOverride: ""
+fullnameOverride: ""
+
+# -----------------------------------------------------------------------------
+# Deployment profiles
+# -----------------------------------------------------------------------------
+# A profile is a sparse overlay. Only the keys it mentions differ from the
+# base values; everything else is inherited. Use `null` in a service block to
+# mean "inherit from the profile/global default".
+deploymentProfiles:
+  # One of: local | il5 | il6 | edge
+  activeProfile: local
+
+  profiles:
+    # -------------------------------------------------------------------------
+    # local — developer laptop and CI
+    # -------------------------------------------------------------------------
+    local:
+      description: >-
+        Single replica per service, no ingress, no autoscaling, no disruption
+        budget, no persistent volumes. Optimised for fast iteration, not for
+        availability.
+      global:
+        environment: "dev"
+        zone: "local-dev"
+        imagePullPolicy: IfNotPresent
+      pod:
+        hostNetwork: false
+        dnsPolicy: ""
+        nodeSelector: {}
+        affinity: {}
+        topologySpreadConstraints: []
+      autoscaling:
+        enabled: false
+      podDisruptionBudget:
+        enabled: false
+      ingress:
+        enabled: false
+      networkPolicy:
+        enabled: true
+        allowIngressController: false
+        externalEgress: false
+        otel:
+          enabled: true
+      persistence:
+        enabled: false
+        size: "8Gi"
+        storageClass: ""
+        accessModes: ["ReadWriteOnce"]
+      services:
+        ontology:
+          replicaCount: 1
+        fabric:
+          replicaCount: 1
+        policy:
+          replicaCount: 1
+        audit:
+          replicaCount: 1
+        thread:
+          replicaCount: 1
+        ingest:
+          replicaCount: 1
+        web:
+          replicaCount: 1
+
+    # -------------------------------------------------------------------------
+    # il5 — accredited cloud enclave
+    # -------------------------------------------------------------------------
+    il5:
+      description: >-
+        Multi-AZ deployment in an accredited cloud enclave (AWS GovCloud,
+        Azure Government, or equivalent). Horizontally scalable fabric,
+        disruption budgets, encrypted retained storage, and an INTERNAL ingress
+        class only — no public listener.
+      global:
+        environment: "prod"
+        zone: "accredited-enclave"
+        imagePullPolicy: "IfNotPresent"
+        storageClass: "ngsh-encrypted-retain"
+      config:
+        # The enclave is accredited for CUI. No record above that level is
+        # written here.
+        classificationLevel: "CUI"
+        # The stub identity adapter is refused outside local/edge, so an
+        # accredited zone must federate.
+        identityProvider: "piv"
+      pod:
+        hostNetwork: false
+        dnsPolicy: "ClusterFirst"
+        nodeSelector: {}
+        topologySpreadConstraints:
+          - maxSkew: 1
+            topologyKey: topology.kubernetes.io/zone
+            whenUnsatisfiable: ScheduleAnyway
+            labelSelector:
+              matchLabels:
+                app.kubernetes.io/part-of: ngsh
+      autoscaling:
+        # Autoscaling is opt-in per service: the request-serving services scale,
+        # the batch spools and the static console do not.
+        enabled: false
+        minReplicas: 2
+        maxReplicas: 8
+        targetCPUUtilizationPercentage: 75
+      podDisruptionBudget:
+        enabled: true
+        minAvailable: 1
+      ingress:
+        enabled: true
+        # MUST be an internal class. The console is reachable only from inside
+        # the accredited enclave's private network.
+        className: "internal"
+      networkPolicy:
+        enabled: true
+        allowIngressController: true
+        # The enclave must reach approved external endpoints (identity,
+        # artefact registry, sanitized-extract sink). Replace this placeholder
+        # with the enclave's approved egress list before promoting.
+        externalEgress: true
+        externalEgressCIDRs: ["10.0.0.0/8"]
+        otel:
+          enabled: true
+      persistence:
+        enabled: true
+        size: "20Gi"
+        storageClass: "ngsh-encrypted-retain"
+        accessModes: ["ReadWriteOnce"]
+      services:
+        ontology:
+          replicaCount: 2
+          autoscaling:
+            enabled: true
+          persistence:
+            enabled: true
+            size: "20Gi"
+        fabric:
+          replicaCount: 3
+          autoscaling:
+            enabled: true
+          persistence:
+            enabled: true
+            size: "50Gi"
+        policy:
+          replicaCount: 2
+          autoscaling:
+            enabled: true
+        audit:
+          replicaCount: 2
+          autoscaling:
+            enabled: true
+          persistence:
+            enabled: true
+            size: "50Gi"
+        thread:
+          replicaCount: 2
+          autoscaling:
+            enabled: true
+          persistence:
+            enabled: true
+            size: "100Gi"
+        ingest:
+          # Scaled to zero: the bulk ingest path is batch-triggered, not
+          # continuously served. The ingestion trigger scales it up for the
+          # duration of a batch and back down afterwards.
+          replicaCount: 0
+          autoscaling:
+            enabled: false
+          podDisruptionBudget:
+            # A single-replica batch spool must not block a node drain.
+            enabled: false
+          persistence:
+            enabled: true
+            size: "20Gi"
+        web:
+          replicaCount: 2
+          autoscaling:
+            enabled: false
+
+    # -------------------------------------------------------------------------
+    # il6 — on-prem classified enclave
+    # -------------------------------------------------------------------------
+    il6:
+      description: >-
+        On-prem classified enclave. Host networking so the pods bind the
+        enclave's own interfaces, strict pod anti-affinity across hosts,
+        dedicated local storage, no autoscaling (capacity is planned, not
+        elastic), and no public ingress of any kind.
+      global:
+        environment: "prod"
+        zone: "classified-enclave"
+        imagePullPolicy: "Always"
+        storageClass: "ngsh-classified-local"
+      config:
+        # The classified enclave holds SECRET material.
+        classificationLevel: "SECRET"
+        # The stub identity adapter is refused outside local/edge, so an
+        # accredited zone must federate.
+        identityProvider: "piv"
+      pod:
+        # The enclave has no overlay network; the pods take the host's
+        # interfaces so the classified enclave's egress control applies to
+        # them directly.
+        hostNetwork: true
+        dnsPolicy: "ClusterFirstWithHostNet"
+        nodeSelector: {}
+        # Strict anti-affinity: no two replicas of the same service on one
+        # host. A host loss must not take a service with it.
+        affinity:
+          podAntiAffinity:
+            requiredDuringSchedulingIgnoredDuringExecution:
+              - topologyKey: kubernetes.io/hostname
+                labelSelector:
+                  matchExpressions:
+                    - key: ngsh.io/service
+                      operator: In
+                      values:
+                        - ontology-service
+                        - fabric-service
+                        - policy-service
+                        - audit-service
+                        - thread-service
+        tolerations:
+          # Classified nodes carry this taint. Replace with the enclave's own.
+          - key: "ngsh.io/classification"
+            operator: "Equal"
+            value: "il6"
+            effect: "NoSchedule"
+        topologySpreadConstraints: []
+      autoscaling:
+        # A classified enclave runs on planned capacity, not on elasticity.
+        enabled: false
+        minReplicas: 2
+        maxReplicas: 4
+      podDisruptionBudget:
+        enabled: true
+        minAvailable: 1
+      ingress:
+        # No ingress controller in the enclave. The console is reached through
+        # an operator jump host on the enclave's management segment.
+        enabled: false
+      networkPolicy:
+        enabled: true
+        allowIngressController: false
+        # Zero egress beyond the enclave's own segments and the approved
+        # sanitized-extract sink, which is reached out of band.
+        externalEgress: false
+        otel:
+          enabled: true
+      persistence:
+        enabled: true
+        size: "50Gi"
+        storageClass: "ngsh-classified-local"
+        accessModes: ["ReadWriteOnce"]
+      services:
+        ontology:
+          replicaCount: 2
+          persistence:
+            enabled: true
+            size: "20Gi"
+        fabric:
+          replicaCount: 2
+          persistence:
+            enabled: true
+            size: "100Gi"
+        policy:
+          replicaCount: 2
+        audit:
+          replicaCount: 2
+          persistence:
+            enabled: true
+            size: "100Gi"
+        thread:
+          replicaCount: 2
+          persistence:
+            enabled: true
+            size: "200Gi"
+        ingest:
+          replicaCount: 1
+          persistence:
+            enabled: true
+            size: "50Gi"
+        web:
+          replicaCount: 1
+          podDisruptionBudget:
+            # The console is not a data-plane service; a budget here would
+            # block every node drain in the enclave.
+            enabled: false
+
+    # -------------------------------------------------------------------------
+    # edge — segregated single-node annex
+    # -------------------------------------------------------------------------
+    edge:
+      description: >-
+        Disconnected annex at a factory floor or test range. Exactly one
+        replica of everything on a single node selected by an edge-hardware
+        label, node-local ReadWriteOnce volumes, no ingress, and egress
+        restricted to the sanctioned store-and-forward uplink. Never a
+        connection to the central fabric.
+      global:
+        environment: "field"
+        zone: "edge-annex"
+        imagePullPolicy: "IfNotPresent"
+        storageClass: ""
+      config:
+        # The annex is accredited for CUI and no higher. The edge profile
+        # deliberately caps the level rather than inheriting the fabric's.
+        classificationLevel: "CUI"
+        # The stub identity adapter IS permitted in the edge profile, because
+        # an annex is not federated to a government directory.
+        identityProvider: "stub"
+      pod:
+        # NOT hostNetwork: the annex runs on its own routed segment behind the
+        # site firewall, and host networking would put the platform's ports on
+        # the physical interface.
+        hostNetwork: false
+        dnsPolicy: "ClusterFirst"
+        # Edge hardware is labelled by the site. Replace with the annex's own
+        # label key.
+        nodeSelector:
+          ngsh.io/node-class: "edge"
+        affinity: {}
+        tolerations:
+          - key: "ngsh.io/node-class"
+            operator: "Equal"
+            value: "edge"
+            effect: "NoSchedule"
+        # A single node cannot spread across zones.
+        topologySpreadConstraints: []
+      autoscaling:
+        # One node, one replica. Autoscaling is meaningless here.
+        enabled: false
+        minReplicas: 1
+        maxReplicas: 1
+      podDisruptionBudget:
+        # A disruption budget on a single-replica, single-node deployment
+        # would block every voluntary eviction.
+        enabled: false
+      ingress:
+        # No external ingress. The annex console is reached on the site's
+        # local segment or by port-forward through the operator jump host.
+        enabled: false
+      networkPolicy:
+        enabled: true
+        allowIngressController: false
+        # Egress is restricted: only the sanctioned store-and-forward uplink
+        # and DNS. No general internet.
+        externalEgress: false
+        otel:
+          # Telemetry is buffered locally and flushed with the next
+          # reconciliation; there is no live collector endpoint at the annex.
+          enabled: false
+      persistence:
+        enabled: true
+        size: "20Gi"
+        storageClass: ""
+        accessModes: ["ReadWriteOnce"]
+      services:
+        ontology:
+          replicaCount: 1
+          persistence:
+            enabled: true
+            size: "10Gi"
+        fabric:
+          replicaCount: 1
+          persistence:
+            enabled: true
+            size: "20Gi"
+        policy:
+          replicaCount: 1
+        audit:
+          replicaCount: 1
+          persistence:
+            enabled: true
+            size: "20Gi"
+        thread:
+          replicaCount: 1
+          persistence:
+            enabled: true
+            size: "20Gi"
+        ingest:
+          replicaCount: 1
+          persistence:
+            enabled: true
+            size: "20Gi"
+        web:
+          replicaCount: 1
+
+# -----------------------------------------------------------------------------
+# Service account and workload identity
+# -----------------------------------------------------------------------------
+serviceAccount:
+  create: true
+  # Defaults to the release fullname when empty.
+  name: ""
+  annotations: {}
+  # The default token is never mounted: workload identity uses an
+  # audience-scoped, short-lived projected token instead.
+  automountServiceAccountToken: false
+  workloadIdentity:
+    # Off by default. Turn on in zones where the platform authenticates to an
+    # external workload identity provider.
+    enabled: false
+    # The audience the projected token is minted for.
+    audience: "ngsh.example.gov"
+    expirationSeconds: 3600
+    # Where the projected token is mounted in the container.
+    tokenMountPath: "/var/run/secrets/ngsh"
+    annotations: {}
+    rbac:
+      create: true
+      # Additional rules for the workload-identity service account. The
+      # platform's own read-only access to its own namespace is added
+      # automatically.
+      rules: []
+
+# Name of a pre-existing Secret that holds the application's secrets. When set,
+# the chart does NOT render a Secret and references this one instead.
+existingSecret: ""
+
+# -----------------------------------------------------------------------------
+# Non-secret configuration (rendered into a ConfigMap)
+# -----------------------------------------------------------------------------
+config:
+  # Tenant key. Every query in the platform is tenant-scoped.
+  tenant: "ngsh"
+  # Highest handling caveat the zone is accredited for. One of UNCLASSIFIED,
+  # CUI, RESTRICTED, SECRET, TOP SECRET.
+  classificationLevel: "UNCLASSIFIED"
+  # Identity provider adapter: "stub" (development actor) or "piv"
+  # (PIV/ICAM federation).
+  #
+  # The platform REFUSES the stub adapter outside the `local` and `edge`
+  # deployment profiles, so the il5 and il6 profiles set this to "piv". The
+  # PIV adapter fails closed: with no federation endpoints configured it
+  # rejects every authentication rather than accepting a weak one.
+  identityProvider: "stub"
+  logLevel: "INFO"
+  logFormat: "json"
+  # Graph adapter. postgres is the local stand-in; neptune and janusgraph are
+  # the accredited engines. See deploy/compose/README.md.
+  graphBackend: "postgres"
+  graphNamespace: "graph"
+  otel:
+    endpoint: "http://otel-collector.observability.svc.cluster.local:4317"
+    protocol: "grpc"
+    tlsInsecure: false
+    # Extra OTel resource attributes, e.g.
+    #   program: NGSH-SHY
+    resourceAttributes: {}
+  # Free-form non-secret configuration, merged into the rendered config file.
+  extra: {}
+
+# -----------------------------------------------------------------------------
+# Secrets
+# -----------------------------------------------------------------------------
+# PLACEHOLDERS ONLY. Every value below is a placeholder that must be replaced
+# before the chart is installed outside a local environment. In an accredited
+# zone the chart is installed with `existingSecret` pointing at a Secret
+# provisioned by the platform's secret manager; no value is then read from
+# this file.
+secrets:
+  postgresUser: "ngsh_app"
+  postgresPassword: "CHANGE_ME_not_a_real_password"
+  postgresHost: "postgres.ngsh.svc.internal"
+  postgresPort: 5432
+  postgresDatabase: "ngsh"
+  jwtSigningKey: "CHANGE_ME_not_a_real_key"
+  oidcClientSecret: "CHANGE_ME_not_a_real_secret"
+  fabricSigningKey: "CHANGE_ME_not_a_real_key"
+
+# -----------------------------------------------------------------------------
+# Ingress
+# -----------------------------------------------------------------------------
+# Disabled by default. When enabled, `className` MUST resolve to an internal
+# class in an accredited zone.
+ingress:
+  enabled: false
+  className: ""
+  annotations: {}
+  hosts:
+    - host: "ngsh.example.gov"
+      paths:
+        - path: "/"
+          pathType: "Prefix"
+          service: "web"
+  tls: []
+
+# -----------------------------------------------------------------------------
+# Network policies
+# -----------------------------------------------------------------------------
+networkPolicy:
+  enabled: true
+  # Allow traffic from an ingress controller when one is deployed.
+  allowIngressController: true
+  ingressControllerNamespace: "ingress"
+  # Egress to the platform datastore.
+  database:
+    enabled: true
+    namespaceSelector: {}
+    port: 5432
+  # Egress to the OpenTelemetry collector.
+  otel:
+    enabled: true
+    namespaceSelector: {}
+    port: 4317
+  # General egress. When true with an empty CIDR list, 0.0.0.0/0 is allowed.
+  externalEgress: false
+  externalEgressCIDRs: []
+  # Raw extra rules, applied verbatim to every service's policy.
+  extraIngress: []
+  extraEgress: []
+
+# -----------------------------------------------------------------------------
+# Pod-level defaults
+# -----------------------------------------------------------------------------
+pod:
+  # Host networking. Used by the IL6 profile so the pods take the enclave's
+  # own interfaces.
+  hostNetwork: false
+  # Empty means ClusterFirst, or ClusterFirstWithHostNet when hostNetwork is
+  # true.
+  dnsPolicy: ""
+  priorityClassName: ""
+  terminationGracePeriodSeconds: 30
+  # Empty means the cluster default (RollingUpdate 25%).
+  deploymentStrategy: {}
+  securityContext:
+    runAsNonRoot: true
+    # Matches the uid/gid the service images run as. The deployment layer
+    # must not impose a uid the image does not use.
+    runAsUser: 65532
+    runAsGroup: 65532
+    fsGroup: 65532
+    seccompProfile:
+      type: RuntimeDefault
+  containerSecurityContext:
+    allowPrivilegeEscalation: false
+    readOnlyRootFilesystem: true
+    capabilities:
+      drop: ["ALL"]
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+  topologySpreadConstraints: []
+  extraPodAnnotations: {}
+  extraPodLabels: {}
+  extraVolumes: []
+  extraVolumeMounts: []
+
+# -----------------------------------------------------------------------------
+# Persistence defaults (per-service values override these)
+# -----------------------------------------------------------------------------
+persistence:
+  enabled: false
+  size: "8Gi"
+  storageClass: ""
+  accessModes: ["ReadWriteOnce"]
+  existingClaim: ""
+  mountPath: "/var/lib/ngsh"
+
+# -----------------------------------------------------------------------------
+# Autoscaling defaults (per-service values override these)
+# -----------------------------------------------------------------------------
+autoscaling:
+  enabled: false
+  minReplicas: 2
+  maxReplicas: 6
+  targetCPUUtilizationPercentage: 75
+  targetMemoryUtilizationPercentage: null
+  annotations: {}
+  behavior: {}
+
+# -----------------------------------------------------------------------------
+# PodDisruptionBudget defaults (per-service values override these)
+# -----------------------------------------------------------------------------
+podDisruptionBudget:
+  enabled: false
+  minAvailable: 1
+  maxUnavailable: null
+  annotations: {}
+
+# -----------------------------------------------------------------------------
+# Helm test
+# -----------------------------------------------------------------------------
+# `helm test` launches a pod that probes a service's /healthz endpoint from
+# inside the cluster.
+tests:
+  enabled: true
+  image:
+    registry: ""
+    repository: "curlimages/curl"
+    tag: "8.10.1"
+    pullPolicy: ""
+  # Key of the service to probe.
+  service: "ontology"
+  path: "/healthz"
+  timeoutSeconds: 10
+
+# -----------------------------------------------------------------------------
+# Services
+# -----------------------------------------------------------------------------
+# `null` in a per-service block means "inherit from the global/profile
+# default". Probes assume the image contract: GET /healthz and GET /readyz
+# return 200 with a JSON body.
+services:
+  ontology:
+    enabled: true
+    name: "ontology-service"
+    port: 8081
+    # Services this one calls, by key. The chart renders an NGSH_<KEY>_URL
+    # environment variable for each, pointing at the in-cluster Service.
+    upstreams: ["fabric"]
+    replicaCount: 1
+    image:
+      registry: ""
+      repository: "ngsh/ontology-service"
+      tag: ""
+      pullPolicy: ""
+    resources:
+      requests:
+        cpu: "100m"
+        memory: "256Mi"
+      limits:
+        cpu: "1"
+        memory: "1Gi"
+    probes:
+      liveness:
+        path: "/healthz"
+        initialDelaySeconds: 15
+        periodSeconds: 20
+        timeoutSeconds: 3
+        failureThreshold: 3
+      readiness:
+        path: "/readyz"
+        initialDelaySeconds: 5
+        periodSeconds: 10
+        timeoutSeconds: 3
+        failureThreshold: 3
+      startup:
+        path: "/healthz"
+        initialDelaySeconds: 10
+        periodSeconds: 5
+        failureThreshold: 30
+    env: []
+    envFrom: []
+    extraEnv: []
+    autoscaling:
+      enabled: null
+      minReplicas: null
+      maxReplicas: null
+      targetCPUUtilizationPercentage: null
+    podDisruptionBudget:
+      enabled: null
+      minAvailable: null
+      maxUnavailable: null
+    persistence:
+      enabled: null
+      size: null
+      storageClass: null
+      accessModes: null
+      existingClaim: null
+      mountPath: null
+    networkPolicy:
+      enabled: null
+      extraIngress: []
+      extraEgress: []
+    nodeSelector: {}
+    tolerations: []
+    affinity: {}
+    topologySpreadConstraints: []
+    podAnnotations: {}
+    podLabels: {}
+    extraVolumes: []
+    extraVolumeMounts: []
+    service:
+      type: ClusterIP
+      annotations: {}
+      labels: {}
+
+  fabric:
+    enabled: true
+    name: "fabric-service"
+    port: 8082
+    upstreams: []
+    replicaCount: 1
+    image:
+      registry: ""
+      repository: "ngsh/fabric-service"
+      tag: ""
+      pullPolicy: ""
+    resources:
+      requests:
+        cpu: "200m"
+        memory: "512Mi"
+      limits:
+        cpu: "2"
+        memory: "2Gi"
+    probes:
+      liveness:
+        path: "/healthz"
+        initialDelaySeconds: 15
+        periodSeconds: 20
+        timeoutSeconds: 3
+        failureThreshold: 3
+      readiness:
+        path: "/readyz"
+        initialDelaySeconds: 5
+        periodSeconds: 10
+        timeoutSeconds: 3
+        failureThreshold: 3
+      startup:
+        path: "/healthz"
+        initialDelaySeconds: 10
+        periodSeconds: 5
+        failureThreshold: 30
+    env: []
+    envFrom: []
+    extraEnv: []
+    autoscaling:
+      enabled: null
+      minReplicas: null
+      maxReplicas: null
+      targetCPUUtilizationPercentage: null
+    podDisruptionBudget:
+      enabled: null
+      minAvailable: null
+      maxUnavailable: null
+    persistence:
+      enabled: null
+      size: null
+      storageClass: null
+      accessModes: null
+      existingClaim: null
+      mountPath: null
+    networkPolicy:
+      enabled: null
+      extraIngress: []
+      extraEgress: []
+    nodeSelector: {}
+    tolerations: []
+    affinity: {}
+    topologySpreadConstraints: []
+    podAnnotations: {}
+    podLabels: {}
+    extraVolumes: []
+    extraVolumeMounts: []
+    service:
+      type: ClusterIP
+      annotations: {}
+      labels: {}
+
+  policy:
+    enabled: true
+    name: "policy-service"
+    port: 8083
+    upstreams: ["fabric", "ontology"]
+    replicaCount: 1
+    image:
+      registry: ""
+      repository: "ngsh/policy-service"
+      tag: ""
+      pullPolicy: ""
+    resources:
+      requests:
+        cpu: "100m"
+        memory: "256Mi"
+      limits:
+        cpu: "1"
+        memory: "1Gi"
+    probes:
+      liveness:
+        path: "/healthz"
+        initialDelaySeconds: 15
+        periodSeconds: 20
+        timeoutSeconds: 3
+        failureThreshold: 3
+      readiness:
+        path: "/readyz"
+        initialDelaySeconds: 5
+        periodSeconds: 10
+        timeoutSeconds: 3
+        failureThreshold: 3
+      startup:
+        path: "/healthz"
+        initialDelaySeconds: 10
+        periodSeconds: 5
+        failureThreshold: 30
+    env: []
+    envFrom: []
+    extraEnv: []
+    autoscaling:
+      enabled: null
+      minReplicas: null
+      maxReplicas: null
+      targetCPUUtilizationPercentage: null
+    podDisruptionBudget:
+      enabled: null
+      minAvailable: null
+      maxUnavailable: null
+    persistence:
+      enabled: null
+      size: null
+      storageClass: null
+      accessModes: null
+      existingClaim: null
+      mountPath: null
+    networkPolicy:
+      enabled: null
+      extraIngress: []
+      extraEgress: []
+    nodeSelector: {}
+    tolerations: []
+    affinity: {}
+    topologySpreadConstraints: []
+    podAnnotations: {}
+    podLabels: {}
+    extraVolumes: []
+    extraVolumeMounts: []
+    service:
+      type: ClusterIP
+      annotations: {}
+      labels: {}
+
+  audit:
+    enabled: true
+    name: "audit-service"
+    port: 8084
+    upstreams: ["fabric"]
+    replicaCount: 1
+    image:
+      registry: ""
+      repository: "ngsh/audit-service"
+      tag: ""
+      pullPolicy: ""
+    resources:
+      requests:
+        cpu: "100m"
+        memory: "256Mi"
+      limits:
+        cpu: "1"
+        memory: "1Gi"
+    probes:
+      liveness:
+        path: "/healthz"
+        initialDelaySeconds: 15
+        periodSeconds: 20
+        timeoutSeconds: 3
+        failureThreshold: 3
+      readiness:
+        path: "/readyz"
+        initialDelaySeconds: 5
+        periodSeconds: 10
+        timeoutSeconds: 3
+        failureThreshold: 3
+      startup:
+        path: "/healthz"
+        initialDelaySeconds: 10
+        periodSeconds: 5
+        failureThreshold: 30
+    env: []
+    envFrom: []
+    extraEnv: []
+    autoscaling:
+      enabled: null
+      minReplicas: null
+      maxReplicas: null
+      targetCPUUtilizationPercentage: null
+    podDisruptionBudget:
+      enabled: null
+      minAvailable: null
+      maxUnavailable: null
+    persistence:
+      enabled: null
+      size: null
+      storageClass: null
+      accessModes: null
+      existingClaim: null
+      mountPath: null
+    networkPolicy:
+      enabled: null
+      extraIngress: []
+      extraEgress: []
+    nodeSelector: {}
+    tolerations: []
+    affinity: {}
+    topologySpreadConstraints: []
+    podAnnotations: {}
+    podLabels: {}
+    extraVolumes: []
+    extraVolumeMounts: []
+    service:
+      type: ClusterIP
+      annotations: {}
+      labels: {}
+
+  thread:
+    enabled: true
+    name: "thread-service"
+    port: 8085
+    upstreams: ["fabric", "ontology"]
+    replicaCount: 1
+    image:
+      registry: ""
+      repository: "ngsh/thread-service"
+      tag: ""
+      pullPolicy: ""
+    resources:
+      requests:
+        cpu: "200m"
+        memory: "512Mi"
+      limits:
+        cpu: "2"
+        memory: "2Gi"
+    probes:
+      liveness:
+        path: "/healthz"
+        initialDelaySeconds: 15
+        periodSeconds: 20
+        timeoutSeconds: 3
+        failureThreshold: 3
+      readiness:
+        path: "/readyz"
+        initialDelaySeconds: 5
+        periodSeconds: 10
+        timeoutSeconds: 3
+        failureThreshold: 3
+      startup:
+        path: "/healthz"
+        initialDelaySeconds: 10
+        periodSeconds: 5
+        failureThreshold: 30
+    env: []
+    envFrom: []
+    extraEnv: []
+    autoscaling:
+      enabled: null
+      minReplicas: null
+      maxReplicas: null
+      targetCPUUtilizationPercentage: null
+    podDisruptionBudget:
+      enabled: null
+      minAvailable: null
+      maxUnavailable: null
+    persistence:
+      enabled: null
+      size: null
+      storageClass: null
+      accessModes: null
+      existingClaim: null
+      mountPath: null
+    networkPolicy:
+      enabled: null
+      extraIngress: []
+      extraEgress: []
+    nodeSelector: {}
+    tolerations: []
+    affinity: {}
+    topologySpreadConstraints: []
+    podAnnotations: {}
+    podLabels: {}
+    extraVolumes: []
+    extraVolumeMounts: []
+    service:
+      type: ClusterIP
+      annotations: {}
+      labels: {}
+
+  ingest:
+    enabled: true
+    name: "ingest-service"
+    port: 8086
+    upstreams: ["fabric", "audit", "ontology"]
+    replicaCount: 1
+    image:
+      registry: ""
+      repository: "ngsh/ingest-service"
+      tag: ""
+      pullPolicy: ""
+    resources:
+      requests:
+        cpu: "200m"
+        memory: "512Mi"
+      limits:
+        cpu: "2"
+        memory: "4Gi"
+    probes:
+      liveness:
+        path: "/healthz"
+        initialDelaySeconds: 15
+        periodSeconds: 20
+        timeoutSeconds: 3
+        failureThreshold: 3
+      readiness:
+        path: "/readyz"
+        initialDelaySeconds: 5
+        periodSeconds: 10
+        timeoutSeconds: 3
+        failureThreshold: 3
+      startup:
+        path: "/healthz"
+        initialDelaySeconds: 10
+        periodSeconds: 5
+        failureThreshold: 30
+    env: []
+    envFrom: []
+    extraEnv: []
+    autoscaling:
+      enabled: null
+      minReplicas: null
+      maxReplicas: null
+      targetCPUUtilizationPercentage: null
+    podDisruptionBudget:
+      enabled: null
+      minAvailable: null
+      maxUnavailable: null
+    persistence:
+      enabled: null
+      size: null
+      storageClass: null
+      accessModes: null
+      existingClaim: null
+      mountPath: null
+    networkPolicy:
+      enabled: null
+      extraIngress: []
+      extraEgress: []
+    nodeSelector: {}
+    tolerations: []
+    affinity: {}
+    topologySpreadConstraints: []
+    podAnnotations: {}
+    podLabels: {}
+    extraVolumes: []
+    extraVolumeMounts: []
+    service:
+      type: ClusterIP
+      annotations: {}
+      labels: {}
+
+  web:
+    enabled: true
+    name: "web"
+    port: 8080
+    upstreams: ["ontology", "fabric", "policy", "audit", "thread", "ingest"]
+    replicaCount: 1
+    image:
+      registry: ""
+      repository: "ngsh/web"
+      tag: ""
+      pullPolicy: ""
+    resources:
+      requests:
+        cpu: "50m"
+        memory: "128Mi"
+      limits:
+        cpu: "500m"
+        memory: "256Mi"
+    probes:
+      liveness:
+        path: "/healthz"
+        initialDelaySeconds: 10
+        periodSeconds: 20
+        timeoutSeconds: 3
+        failureThreshold: 3
+      readiness:
+        path: "/healthz"
+        initialDelaySeconds: 5
+        periodSeconds: 10
+        timeoutSeconds: 3
+        failureThreshold: 3
+      startup:
+        path: "/healthz"
+        initialDelaySeconds: 5
+        periodSeconds: 5
+        failureThreshold: 30
+    env: []
+    envFrom: []
+    extraEnv: []
+    autoscaling:
+      enabled: null
+      minReplicas: null
+      maxReplicas: null
+      targetCPUUtilizationPercentage: null
+    podDisruptionBudget:
+      enabled: null
+      minAvailable: null
+      maxUnavailable: null
+    persistence:
+      enabled: null
+      size: null
+      storageClass: null
+      accessModes: null
+      existingClaim: null
+      mountPath: null
+    networkPolicy:
+      enabled: null
+      extraIngress: []
+      extraEgress: []
+    nodeSelector: {}
+    tolerations: []
+    affinity: {}
+    topologySpreadConstraints: []
+    podAnnotations: {}
+    podLabels: {}
+    extraVolumes: []
+    extraVolumeMounts: []
+    service:
+      type: ClusterIP
+      annotations: {}
+      labels: {}

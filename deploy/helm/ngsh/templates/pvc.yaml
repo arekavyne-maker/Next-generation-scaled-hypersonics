@@ -1,0 +1,40 @@
+{{/*
+================================================================================
+NGSH — Persistent volume claims
+
+One PVC per service that asks for persistence and does not name an existing
+claim. The StorageClass comes from the effective (profile-merged) values, so
+the IL6 profile lands on a dedicated classified-local class while the edge
+profile stays on node-local ReadWriteOnce storage.
+================================================================================
+*/}}
+{{- $v := include "ngsh.effectiveValues" . | fromYaml }}
+{{- range $key, $svc := $v.services }}
+{{- if $svc.enabled }}
+{{- $p := include "ngsh.svcPersistence" (dict "v" $v "svc" $svc) | fromYaml }}
+{{- if and $p.enabled (not $p.existingClaim) }}
+{{- $storageClass := $p.storageClass | default $v.global.storageClass }}
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "ngsh.serviceObjectName" (dict "ctx" $v "key" $key) }}
+  labels:
+    {{- include "ngsh.labels" $v | nindent 4 }}
+    app.kubernetes.io/component: {{ $key }}
+    ngsh.io/service: {{ $svc.name }}
+  annotations:
+    ngsh.io/deployment-profile: {{ $v.activeProfile | quote }}
+    {{- include "ngsh.commonAnnotations" $v | nindent 4 }}
+spec:
+  accessModes:
+    {{- toYaml $p.accessModes | nindent 4 }}
+  resources:
+    requests:
+      storage: {{ $p.size | quote }}
+  {{- if $storageClass }}
+  storageClassName: {{ $storageClass | quote }}
+  {{- end }}
+{{- end }}
+{{- end }}
+{{- end }}

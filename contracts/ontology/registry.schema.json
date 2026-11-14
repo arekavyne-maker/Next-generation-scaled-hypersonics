@@ -1,0 +1,66 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ngsh.mil/contracts/ontology/registry.schema.json",
+  "title": "NGSH Ontology Registry",
+  "description": "Machine-readable index of the NGSH ontology: entity types, relation types with allowed source/target types and cardinality, and the cross-type constraints that make the ontology a real model rather than a list of tables. Validated by tools/validate_contracts.py and consumed by the ontology service, the graph projector and the contract code generator.",
+  "type": "object",
+  "required": ["ontologyVersion", "entities", "relations"],
+  "properties": {
+    "ontologyVersion": { "type": "string", "description": "Semantic version of the ontology. Breaking changes bump major." },
+    "entities": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["type", "idPrefix", "schemaDef", "pillars"],
+        "properties": {
+          "type": { "type": "string" },
+          "idPrefix": { "type": "string" },
+          "schemaDef": { "type": "string", "description": "JSON pointer into entities.schema.json#/$defs/<X>Attributes." },
+          "description": { "type": "string" },
+          "pillars": {
+            "type": "array",
+            "items": { "type": "string", "enum": ["A", "B", "C", "D", "E", "F", "G", "H", "FOUNDATION"] },
+            "description": "Which pillars own or consume this type. Drives modular deployment and data-federation routing."
+          },
+          "classificationFloor": {
+            "type": "string",
+            "enum": ["UNCLASSIFIED", "CUI", "CUI//REL", "CUI//FOUO", "RESTRICTED", "SECRET", "TOP SECRET"],
+            "description": "Minimum handling level this type may ever carry. Prevents downgrade-by-construction."
+          },
+          "pii": { "type": "boolean", "default": false, "description": "Contains personally identifiable information; drives retention and anonymisation rules." }
+        }
+      }
+    },
+    "relations": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["type", "fromTypes", "toTypes"],
+        "properties": {
+          "type": { "type": "string" },
+          "fromTypes": { "type": "array", "items": { "type": "string" } },
+          "toTypes": { "type": "array", "items": { "type": "string" } },
+          "cardinality": { "type": "string", "enum": ["ONE_TO_ONE", "ONE_TO_MANY", "MANY_TO_ONE", "MANY_TO_MANY"] },
+          "description": { "type": "string" },
+          "mayCrossClassification": { "type": "boolean", "default": false, "description": "If false, an edge between differently-classified nodes is rejected at write time." },
+          "requiresProvenance": { "type": "boolean", "default": true },
+          "supportsRollup": { "type": "boolean", "default": false, "description": "Edge participates in confidence/verification roll-up along a trace path." }
+        }
+      }
+    },
+    "constraints": {
+      "type": "array",
+      "description": "Cross-entity invariants enforced by the ontology service on write.",
+      "items": {
+        "type": "object",
+        "required": ["id", "rule"],
+        "properties": {
+          "id": { "type": "string" },
+          "rule": { "type": "string", "description": "Human-readable statement of the invariant." },
+          "severity": { "type": "string", "enum": ["ERROR", "WARNING"] },
+          "scope": { "type": "string" }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ngsh.mil/contracts/events/entity.relation.asserted.schema.json",
+  "title": "entity.relation.asserted",
+  "description": "An edge was added to the digital thread. Edges are first-class and classified: an edge may not bridge a classification boundary unless its relation type is declared mayCrossClassification in the ontology registry.",
+  "type": "object",
+  "required": ["relation"],
+  "additionalProperties": false,
+  "properties": {
+    "relation": { "$ref": "https://ngsh.mil/contracts/ontology/relations.schema.json" }
+  }
+}

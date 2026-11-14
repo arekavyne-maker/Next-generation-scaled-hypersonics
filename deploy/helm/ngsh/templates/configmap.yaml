@@ -1,0 +1,39 @@
+{{/*
+================================================================================
+NGSH — Platform configuration (non-secret)
+
+A single ConfigMap holding the platform's non-secret configuration as JSON.
+It is mounted read-only at /etc/ngsh and referenced by the services through
+NGSH_CONFIG_FILE.
+
+Nothing secret may ever be added here. Secrets live in the Secret rendered by
+secret.yaml, or in a pre-existing Secret named by `existingSecret`.
+================================================================================
+*/}}
+{{- $v := include "ngsh.effectiveValues" . | fromYaml }}
+{{- $cfg := dict
+      "service" "ngsh"
+      "tenant" $v.config.tenant
+      "classificationLevel" $v.config.classificationLevel
+      "environment" $v.global.environment
+      "deploymentProfile" $v.activeProfile
+      "deploymentZone" $v.global.zone
+      "logLevel" $v.config.logLevel
+      "logFormat" $v.config.logFormat
+      "graphBackend" $v.config.graphBackend
+      "graphNamespace" $v.config.graphNamespace
+      "otel" $v.config.otel
+      "extra" $v.config.extra -}}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "ngsh.configMapName" $v }}
+  labels:
+    {{- include "ngsh.labels" $v | nindent 4 }}
+    app.kubernetes.io/component: config
+  annotations:
+    ngsh.io/deployment-profile: {{ $v.activeProfile | quote }}
+    {{- include "ngsh.commonAnnotations" $v | nindent 4 }}
+data:
+  ngsh-config.json: |
+    {{- toPrettyJson $cfg | nindent 4 }}

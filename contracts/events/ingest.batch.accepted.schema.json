@@ -1,0 +1,43 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ngsh.mil/contracts/events/ingest.batch.accepted.schema.json",
+  "title": "ingest.batch.accepted",
+  "description": "A bulk ingestion batch was accepted into the fabric. Emitted by the ingest service for raw test, telemetry and process data so that ingestion volume, lineage and classification can be accounted for independently of the entities that batch produced.",
+  "type": "object",
+  "required": ["batchId", "source", "recordsAccepted"],
+  "additionalProperties": false,
+  "properties": {
+    "batchId": { "type": "string" },
+    "source": { "type": "string", "description": "Ingest adapter or upstream system identifier." },
+    "sourceUri": { "type": "string" },
+    "format": { "type": "string", "enum": ["CSV", "NDJSON", "JSON", "PARQUET", "HDF5", "NETCDF", "BINARY", "OTHER"] },
+    "recordsAccepted": { "type": "integer", "minimum": 0 },
+    "recordsRejected": { "type": "integer", "minimum": 0 },
+    "bytesAccepted": { "type": "integer", "minimum": 0 },
+    "sha256": { "type": "string", "description": "Digest of the accepted payload; establishes integrity for the object store copy." },
+    "objectUri": { "type": "string", "description": "Immutable object-store location of the accepted raw data." },
+    "entityIds": { "type": "array", "items": { "type": "string" }, "description": "Entities produced from this batch." },
+    "edge": {
+      "type": ["object", "null"],
+      "description": "Populated when the batch was captured at a disconnected edge node and later reconciled.",
+      "properties": {
+        "nodeId": { "type": "string" },
+        "capturedAt": { "type": "string", "format": "date-time" },
+        "reconciledAt": { "type": "string", "format": "date-time" },
+        "clockSkewMs": { "type": "number" },
+        "localSequence": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Highest edge-local sequence carried by this batch. Rule S-1 of ADR-0006."
+        },
+        "branchedFromSeq": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "The fabric sequence the edge branched from. Rule S-2 of ADR-0006."
+        },
+        "clockUntrusted": { "type": "boolean", "default": false }
+      },
+      "additionalProperties": false
+    }
+  }
+}

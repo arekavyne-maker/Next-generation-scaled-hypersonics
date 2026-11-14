@@ -1,0 +1,254 @@
+{
+  "policyVersion": "1.0.0",
+  "description": "NGSH access control policy. ABAC over subject, resource, action and environment attributes. Explicit deny wins over allow regardless of priority. Every decision records the matched rule id and this policy version, so the access trail is reconstructable (PSDD 8, Auditability).",
+  "defaultEffect": "DENY",
+  "classificationClearanceFloor": {
+    "UNCLASSIFIED": "NONE",
+    "CUI": "NONE",
+    "CUI//REL": "NONE",
+    "CUI//FOUO": "NONE",
+    "RESTRICTED": "SECRET",
+    "SECRET": "SECRET",
+    "TOP SECRET": "TOP SECRET"
+  },
+  "metadata": {
+    "owner": "NGSH Security & Compliance",
+    "reviewCadenceDays": 180,
+    "obligations": [
+      { "name": "audit", "description": "The decision must be written to the tamper-evident ledger." },
+      { "name": "watermark", "description": "Rendered output must carry the sanitised-export watermark." },
+      { "name": "no-export", "description": "The response may not be exported, printed, copied to removable media, or forwarded off the fabric." },
+      { "name": "read-only", "description": "The response must not be cached, indexed, or used as ML training data." },
+      { "name": "log-externally", "description": "The decision must also be reported to the security operations centre." }
+    ]
+  },
+  "rules": [
+    {
+      "id": "POL-DENY-001",
+      "description": "Cross-tenant access is never permitted. Tenancy is the hard boundary between programs.",
+      "effect": "DENY",
+      "priority": 1000,
+      "reason": "cross-tenant access denied",
+      "when": {
+        "all": [
+          { "attr": "resource.tenant", "op": "has", "value": true },
+          { "attr": "subject.tenant", "op": "has", "value": true },
+          { "not": { "attr": "resource.tenant", "op": "eq_subject_tenant" } }
+        ]
+      }
+    },    {
+      "id": "POL-DENY-002",
+      "description": "Foreign citizens may not reach CUI or above without an approved foreign-access agreement. Export control is a hard gate, not a risk to be scored.",
+      "effect": "DENY",
+      "priority": 990,
+      "reason": "export-control restriction: foreign access to CUI or above is not permitted",
+      "when": {
+        "all": [
+          { "attr": "subject.citizenship", "op": "not_in", "value": ["US", "ALLIED", "UNKNOWN"] },
+          { "attr": "resource.classification.level", "op": "level_gte", "value": "CUI" }
+        ]
+      }
+    },
+    {
+      "id": "POL-DENY-003",
+      "description": "The subject's clearance must meet the floor required by the resource's classification.",
+      "effect": "DENY",
+      "priority": 980,
+      "reason": "clearance insufficient for the resource classification",
+      "when": {
+        "all": [
+          { "attr": "subject.clearance", "op": "clearance_lt", "value": "SECRET" },
+          { "attr": "resource.classification.level", "op": "level_gte", "value": "RESTRICTED" }
+        ]
+      }
+    },
+    {
+      "id": "POL-DENY-004",
+      "description": "Top Secret material requires Top Secret clearance or above.",
+      "effect": "DENY",
+      "priority": 975,
+      "reason": "clearance insufficient for Top Secret material",
+      "when": {
+        "all": [
+          { "attr": "subject.clearance", "op": "clearance_lt", "value": "TOP SECRET" },
+          { "attr": "resource.classification.level", "op": "level_gte", "value": "TOP SECRET" }
+        ]
+      }
+    },
+    {
+      "id": "POL-DENY-005",
+      "description": "Test results are immutable evidence. Once recorded they may be read and superseded, never edited in place (ontology constraint C-003).",
+      "effect": "DENY",
+      "priority": 970,
+      "reason": "TestResult is append-only; corrections are new superseding records",
+      "when": {
+        "all": [
+          { "attr": "resource.type", "op": "eq", "value": "TestResult" },
+          { "attr": "action", "op": "in", "value": ["update", "delete", "patch"] }
+        ]
+      }
+    },
+    {
+      "id": "POL-DENY-006",
+      "description": "The audit ledger is append-only and may not be altered through the API by anyone, including platform administrators.",
+      "effect": "DENY",
+      "priority": 965,
+      "reason": "the audit ledger is append-only",
+      "when": {
+        "all": [
+          { "attr": "resource.type", "op": "eq", "value": "AuditLedger" },
+          { "attr": "action", "op": "in", "value": ["update", "delete", "patch"] }
+        ]
+      }
+    },
+    {
+      "id": "POL-DENY-007",
+      "description": "A subject without the program tag in their need-to-know list may not reach program-scoped material, even with adequate clearance.",
+      "effect": "DENY",
+      "priority": 960,
+      "reason": "need-to-know not satisfied for the requested program",
+      "when": {
+        "all": [
+          { "attr": "resource.program", "op": "has", "value": true },
+          { "not": { "attr": "resource.program", "op": "in_subject_need_to_know" } }
+        ]
+      }
+    },
+    {
+      "id": "POL-ALLOW-010",
+      "description": "Workload identities with the fabric-service role may read the event log directly. The fabric is the system of record and must remain reachable for replay and projection rebuild.",
+      "effect": "ALLOW",
+      "priority": 500,
+      "reason": "workload identity permitted to read the event log",
+      "obligations": ["audit"],
+      "when": {
+        "all": [
+          { "attr": "subject.kind", "op": "eq", "value": "service" },
+          { "attr": "subject.subjectId", "op": "starts_with", "value": "svc:fabric" },
+          { "attr": "action", "op": "in", "value": ["read", "replay", "subscribe"] }
+        ]
+      }
+    },
+    {
+      "id": "POL-ALLOW-011",
+      "description": "The policy decision point may record decisions for any subject, because it must be able to evaluate and log every access attempt including those it denies.",
+      "effect": "ALLOW",
+      "priority": 495,
+      "reason": "PDP may record decisions",
+      "obligations": ["audit"],
+      "when": {
+        "all": [
+          { "attr": "subject.kind", "op": "eq", "value": "service" },
+          { "attr": "subject.subjectId", "op": "starts_with", "value": "svc:policy" },
+          { "attr": "action", "op": "in", "value": ["record-decision", "read-policy"] }
+        ]
+      }
+    },
+    {
+      "id": "POL-ALLOW-012",
+      "description": "A cleared engineer with the program in their need-to-know list may read and write operational programme data: parts, materials, processes, test articles, campaigns, results, requirements, interfaces, models, suppliers, facilities, range slots and skills.",
+      "effect": "ALLOW",
+      "priority": 400,
+      "reason": "cleared subject with program need-to-know over programme data",
+      "obligations": ["audit"],
+      "when": {
+        "all": [
+          { "attr": "subject.kind", "op": "in", "value": ["user", "service"] },
+          { "attr": "resource.tenant", "op": "eq_subject_tenant" },
+          { "attr": "resource.program", "op": "in_subject_programs" },
+          {
+            "attr": "resource.type",
+            "op": "in",
+            "value": [
+              "System", "Variant", "Subsystem", "Part", "Material", "ProcessPlan",
+              "ProcessRun", "TestArticle", "TestCampaign", "TestResult", "Requirement",
+              "Interface", "Model", "Supplier", "PartProvenance", "Facility",
+              "RangeSlot", "Skill"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "POL-ALLOW-012T",
+      "description": "Threat material requires Secret clearance and the program need-to-know. These types carry a RESTRICTED classification floor, so the clearance floor rule already denies an under-cleared subject; this rule states the requirement in the positive as well.",
+      "effect": "ALLOW",
+      "priority": 395,
+      "reason": "cleared subject with program need-to-know over threat material",
+      "obligations": ["audit", "no-export"],
+      "when": {
+        "all": [
+          { "attr": "subject.kind", "op": "in", "value": ["user", "service"] },
+          { "attr": "resource.tenant", "op": "eq_subject_tenant" },
+          { "attr": "resource.program", "op": "in_subject_programs" },
+          { "attr": "subject.clearance", "op": "clearance_gte", "value": "SECRET" },
+          { "attr": "resource.type", "op": "in", "value": ["ThreatSystem", "ThreatObservation", "EngagementScenario"] }
+        ]
+      }
+    },
+    {
+      "id": "POL-ALLOW-012P",
+      "description": "Personally identifiable workforce records. Access is permitted only within the program and only with the audit obligation, because PII-bearing records are subject to strict retention rules (registry pii flag).",
+      "effect": "ALLOW",
+      "priority": 390,
+      "reason": "cleared subject with program need-to-know over workforce records",
+      "obligations": ["audit", "read-only"],
+      "when": {
+        "all": [
+          { "attr": "subject.kind", "op": "eq", "value": "user" },
+          { "attr": "resource.tenant", "op": "eq_subject_tenant" },
+          { "attr": "resource.program", "op": "in_subject_programs" },
+          { "attr": "resource.type", "op": "in", "value": ["Person", "Credential"] }
+        ]
+      }
+    },
+    {
+      "id": "POL-ALLOW-013",
+      "description": "Sanitised academic extracts are readable by foreign and allied researchers because the extract itself has been through the cross-domain guard and carries no classified content.",
+      "effect": "ALLOW",
+      "priority": 380,
+      "reason": "sanitised extract released through the cross-domain guard",
+      "obligations": ["audit", "watermark", "no-export", "read-only"],
+      "when": {
+        "all": [
+          { "attr": "resource.type", "op": "eq", "value": "SanitizedExtract" },
+          { "attr": "resource.classification.level", "op": "eq", "value": "UNCLASSIFIED" }
+        ]
+      }
+    },
+    {
+      "id": "POL-ALLOW-014",
+      "description": "Edge nodes may append captured observations within their own tenant. Edge capture is append-only and reconciled later; edge nodes never read back the wider fabric.",
+      "effect": "ALLOW",
+      "priority": 360,
+      "reason": "edge capture permitted in degraded mode",
+      "obligations": ["audit"],
+      "when": {
+        "all": [
+          { "attr": "subject.kind", "op": "eq", "value": "edge-agent" },
+          { "attr": "action", "op": "in", "value": ["append", "capture", "reconcile"] }
+        ]
+      }
+    },
+    {
+      "id": "POL-ALLOW-015",
+      "description": "Any subject may read the ontology registry, the policy set and the event catalog. These are structural metadata with no classified content and the whole platform depends on them being discoverable.",
+      "effect": "ALLOW",
+      "priority": 340,
+      "reason": "structural metadata is readable by all authenticated subjects",
+      "obligations": ["audit"],
+      "when": {
+        "all": [
+          { "attr": "resource.type", "op": "in", "value": ["OntologyRegistry", "PolicySet", "EventCatalog", "HealthStatus"] },
+          { "attr": "action", "op": "eq", "value": "read" }
+        ]
+      }
+    }
+  ],
+  "notes": [
+    "Subject-scoped operators (eq_subject_tenant, in_subject_programs, in_subject_need_to_know) let access rules reference the requesting subject without embedding subject-specific values in this document. The policy stays a static, reviewable artefact.",
+    "Explicit deny wins over allow regardless of relative priority, so the deny rules are written to be narrow and precise rather than to rely on ordering.",
+    "A rule that matches nothing is simply absent from the decision. Every request that matches no rule falls through to defaultEffect=DENY.",
+    "The allow rules enumerate the resource types they cover. A resource type that is not named in any allow rule is unreachable, which is the intended fail-closed behaviour: adding a new entity type to the ontology requires a deliberate policy decision before its content becomes readable."
+  ]
+}

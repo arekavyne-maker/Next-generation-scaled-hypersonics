@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ngsh.mil/contracts/events/model.validated.schema.json",
+  "title": "model.validated",
+  "description": "A model was scored against test evidence, producing or updating its fidelity score and applicability envelope. This is the mechanism by which test-coupled M&S is realised (PSDD 4.2 #4, G-3, G-4): every test result regenerates models automatically.",
+  "type": "object",
+  "required": ["modelId", "modelVersion", "fidelity"],
+  "additionalProperties": false,
+  "properties": {
+    "modelId": { "type": "string" },
+    "modelVersion": { "type": "string" },
+    "fidelity": { "$ref": "https://ngsh.mil/contracts/ontology/common.schema.json#/$defs/FidelityScore" },
+    "evidenceTestResultIds": { "type": "array", "items": { "type": "string" } },
+    "priorFidelity": { "type": "object", "additionalProperties": true },
+    "regenerationTriggered": { "type": "boolean", "default": false, "description": "True when this validation caused the model implementation to be re-fit rather than merely re-scored." },
+    "approvedBy": { "type": "string", "description": "Human approver; mandatory where the model informs safety-relevant output." }
+  }
+}

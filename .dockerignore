@@ -1,0 +1,46 @@
+# Keep the build context small and deterministic. The image contains the
+# Python tree and the contract layer; nothing else is needed at runtime.
+
+.git
+.gitignore
+.venv
+venv
+
+# Local state
+data
+*.db
+*.db-wal
+*.db-shm
+.env
+
+# Node
+node_modules
+apps/web/dist
+apps/web/.vite
+**/node_modules
+**/dist
+
+# Tooling caches
+.pytest_cache
+.ruff_cache
+.mypy_cache
+.coverage
+htmlcov
+**/__pycache__
+**/*.py[cod]
+**/*.egg-info
+
+# Documentation is not needed in the image
+docs
+*.md
+!services/*/README.md
+!libs/*/README.md
+
+# Deployment manifests are applied by the platform, not baked into the image
+deploy
+
+# Editors and OS
+.DS_Store
+.idea
+.vscode
+**/*.swp

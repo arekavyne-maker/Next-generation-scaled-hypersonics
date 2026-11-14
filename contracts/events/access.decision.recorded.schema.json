@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ngsh.mil/contracts/events/access.decision.recorded.schema.json",
+  "title": "access.decision.recorded",
+  "description": "The policy decision point recorded an authorization outcome. Every read and write decision is an event so that the access trail is reconstructable end to end (PSDD 8 Auditability) and so that CMMC / program-protection evidence can be generated automatically.",
+  "type": "object",
+  "required": ["decision", "resource", "action"],
+  "additionalProperties": false,
+  "properties": {
+    "decision": { "type": "string", "enum": ["ALLOW", "DENY", "INDETERMINATE"] },
+    "action": { "type": "string", "description": "Requested action, e.g. 'read', 'write', 'export', 'train'." },
+    "resource": {
+      "type": "object",
+      "required": ["type", "id"],
+      "properties": {
+        "type": { "type": "string" },
+        "id": { "type": "string" },
+        "classification": { "$ref": "https://ngsh.mil/contracts/ontology/common.schema.json#/$defs/Classification" }
+      }
+    },
+    "policyId": { "type": "string", "description": "Identifier of the policy rule that produced the decision." },
+    "policyVersion": { "type": "string" },
+    "obligations": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Downstream duties attached to an ALLOW, e.g. 'log-externally', 'watermark', 'no-export'."
+    },
+    "reason": { "type": "string", "description": "Human-readable explanation, especially for DENY." },
+    "context": { "type": "object", "additionalProperties": true, "description": "Environmental factors considered by the policy (device posture, time, network zone)." }
+  }
+}

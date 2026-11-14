@@ -1,0 +1,46 @@
+{{/*
+================================================================================
+NGSH — Pod disruption budgets
+
+Rendered only for services that opt in (per-service `podDisruptionBudget.enabled`,
+which falls back to the global `podDisruptionBudget.enabled`).
+
+Enabled by the IL5 and IL6 profiles. The edge profile keeps it off: with one
+replica on one node, a budget would block every voluntary eviction and would
+make node maintenance impossible.
+================================================================================
+*/}}
+{{- $v := include "ngsh.effectiveValues" . | fromYaml }}
+{{- range $key, $svc := $v.services }}
+{{- if $svc.enabled }}
+{{- $pdb := include "ngsh.svcPodDisruptionBudget" (dict "v" $v "svc" $svc) | fromYaml }}
+{{- if $pdb.enabled }}
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ include "ngsh.serviceObjectName" (dict "ctx" $v "key" $key) }}
+  labels:
+    {{- include "ngsh.labels" $v | nindent 4 }}
+    app.kubernetes.io/component: {{ $key }}
+    ngsh.io/service: {{ $svc.name }}
+  annotations:
+    ngsh.io/deployment-profile: {{ $v.activeProfile | quote }}
+    {{- include "ngsh.commonAnnotations" $v | nindent 4 }}
+    {{- with $pdb.annotations }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+spec:
+  {{- if not (kindIs "invalid" $pdb.maxUnavailable) }}
+  maxUnavailable: {{ $pdb.maxUnavailable }}
+  {{- else }}
+  minAvailable: {{ $pdb.minAvailable }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "ngsh.selectorLabels" $v | nindent 6 }}
+      app.kubernetes.io/component: {{ $key }}
+      ngsh.io/service: {{ $svc.name }}
+{{- end }}
+{{- end }}
+{{- end }}

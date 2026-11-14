@@ -1,0 +1,56 @@
+{{/*
+================================================================================
+NGSH — Ingress
+
+Disabled by default. When enabled, `ingress.className` MUST resolve to an
+INTERNAL ingress class in an accredited zone: the console is reachable only
+from inside the enclave's private network, never from the public internet.
+
+Only the console is exposed. The backend services are reachable in-cluster
+through their ClusterIP Services and are not published.
+================================================================================
+*/}}
+{{- $v := include "ngsh.effectiveValues" . | fromYaml }}
+{{- if $v.ingress.enabled }}
+{{- range $host := $v.ingress.hosts }}
+{{- range $path := $host.paths }}
+{{- $svc := index $v.services ($path.service | default "web") }}
+{{- if $svc.enabled }}
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ include "ngsh.serviceObjectName" (dict "ctx" $v "key" ($path.service | default "web")) }}
+  labels:
+    {{- include "ngsh.labels" $v | nindent 4 }}
+    app.kubernetes.io/component: ingress
+    ngsh.io/service: {{ $svc.name }}
+  annotations:
+    ngsh.io/deployment-profile: {{ $v.activeProfile | quote }}
+    {{- include "ngsh.commonAnnotations" $v | nindent 4 }}
+    {{- with $v.ingress.annotations }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+spec:
+  {{- with $v.ingress.className }}
+  ingressClassName: {{ . }}
+  {{- end }}
+  {{- with $v.ingress.tls }}
+  tls:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  rules:
+    - host: {{ $host.host | quote }}
+      http:
+        paths:
+          - path: {{ $path.path }}
+            pathType: {{ $path.pathType }}
+            backend:
+              service:
+                name: {{ include "ngsh.serviceObjectName" (dict "ctx" $v "key" ($path.service | default "web")) }}
+                port:
+                  number: {{ $svc.port }}
+{{- end }}
+{{- end }}
+{{- end }}
+{{- end }}

@@ -1,0 +1,62 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ngsh.mil/contracts/events/test.result.recorded.schema.json",
+  "title": "test.result.recorded",
+  "description": "A test outcome was recorded against a test article. This is the central evidence event of the platform: it feeds requirements verification (Pillar A), CMC process learning (Pillar B), the test data lake (Pillar C), and model validation (Pillar G). Test results are immutable: a correction is a new event carrying supersedesRef, never an in-place edit.",
+  "type": "object",
+  "required": ["testResult"],
+  "additionalProperties": false,
+  "properties": {
+    "testResult": {
+      "type": "object",
+      "required": ["id", "type", "version", "createdAt", "updatedAt", "tenant"],
+      "properties": {
+        "id": { "type": "string" },
+        "type": { "const": "TestResult" },
+        "tenant": { "type": "string" },
+        "program": { "type": "string" },
+        "version": { "type": "integer", "minimum": 1 },
+        "classification": { "$ref": "https://ngsh.mil/contracts/ontology/common.schema.json#/$defs/Classification" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" },
+        "provenance": { "$ref": "https://ngsh.mil/contracts/ontology/common.schema.json#/$defs/Provenance" },
+        "attributes": {
+          "type": "object",
+          "required": ["testMethod", "outcome"],
+          "properties": {
+            "campaignId": { "type": "string" },
+            "testArticleId": { "type": "string" },
+            "testMethod": { "type": "string" },
+            "outcome": { "type": "string", "enum": ["PASS", "FAIL", "MARGINAL", "INCONCLUSIVE", "NOT_RUN"] },
+            "measurements": { "type": "array", "items": { "$ref": "https://ngsh.mil/contracts/ontology/common.schema.json#/$defs/Measurement" } },
+            "limits": { "type": "object", "additionalProperties": true },
+            "configurationSnapshot": {
+              "type": "object",
+              "additionalProperties": true,
+              "description": "Configuration context: variant, lot numbers, part revisions, software build, instrument calibration state. Without this the result is not traceable."
+            },
+            "dataSetUris": { "type": "array", "items": { "type": "string" } },
+            "modelVersionIds": { "type": "array", "items": { "type": "string" } },
+            "baselineId": { "type": "string" },
+            "anomalyFlags": { "type": "array", "items": { "type": "string" } },
+            "reviewedBy": { "type": "string" }
+          }
+        }
+      }
+    },
+    "supersedesRef": {
+      "type": "string",
+      "description": "Id of the TestResult this event corrects. The prior result remains in the log and in the graph, marked superseded."
+    },
+    "reductionPipeline": {
+      "type": "object",
+      "description": "Provenance of the automated reduction that produced the measurements.",
+      "properties": {
+        "pipelineVersion": { "type": "string" },
+        "inputUri": { "type": "string" },
+        "inputSha256": { "type": "string" },
+        "parameters": { "type": "object", "additionalProperties": true }
+      }
+    }
+  }
+}

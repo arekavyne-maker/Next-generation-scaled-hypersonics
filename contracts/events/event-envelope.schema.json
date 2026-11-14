@@ -1,0 +1,109 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ngsh.mil/contracts/events/event-envelope.schema.json",
+  "title": "NGSH Event Envelope",
+  "description": "Envelope for every record written to the NGSH event log. The event log is the system of record; the graph, search indexes, lakehouse and vector index are projections rebuilt by replay. Envelope shape is versioned independently of payload shape so that consumers can route and audit without understanding domain semantics.",
+  "type": "object",
+  "required": [
+    "eventId",
+    "eventType",
+    "eventVersion",
+    "aggregateType",
+    "aggregateId",
+    "sequence",
+    "occurredAt",
+    "recordedAt",
+    "tenant",
+    "actor",
+    "payload"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "eventId": {
+      "type": "string",
+      "pattern": "^01[0-9A-HJKMNP-TV-Z]{24}$",
+      "description": "ULID, lexicographically sortable, time-ordered. Doubles as the idempotency key for at-least-once delivery."
+    },
+    "eventType": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9]*(\\.[a-z][a-z0-9]*)+$",
+      "description": "Dot-delimited event name, e.g. 'test.result.recorded'."
+    },
+    "eventVersion": { "type": "integer", "minimum": 1, "description": "Version of this event type's payload schema." },
+    "aggregateType": { "type": "string", "description": "Entity type the event applies to." },
+    "aggregateId": { "type": "string", "description": "Entity id the event applies to." },
+    "sequence": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Per-aggregate monotonic sequence. Enforces optimistic concurrency and enables deterministic replay ordering."
+    },
+    "causationId": {
+      "type": ["string", "null"],
+      "description": "eventId of the command or event that directly caused this one. Builds the causal chain for audit."
+    },
+    "correlationId": {
+      "type": ["string", "null"],
+      "description": "Identifier shared by all events produced while handling one logical request or campaign."
+    },
+    "transactionId": {
+      "type": ["string", "null"],
+      "description": "Groups events that must be applied atomically by projections."
+    },
+    "occurredAt": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When the fact occurred in the physical world (may predate ingestion significantly for test data)."
+    },
+    "recordedAt": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When NGSH durably accepted the event. Never earlier than occurredAt."
+    },
+    "tenant": { "type": "string" },
+    "program": { "type": ["string", "null"] },
+    "actor": { "$ref": "https://ngsh.mil/contracts/ontology/common.schema.json#/$defs/Actor" },
+    "classification": { "$ref": "https://ngsh.mil/contracts/ontology/common.schema.json#/$defs/Classification" },
+    "payload": {
+      "type": "object",
+      "description": "Event-type-specific body, validated against contracts/events/<event-type>/<version>.schema.json."
+    },
+    "attachments": {
+      "type": "array",
+      "items": { "$ref": "https://ngsh.mil/contracts/ontology/common.schema.json#/$defs/Attachment" }
+    },
+    "idempotencyKey": {
+      "type": ["string", "null"],
+      "description": "Caller-supplied deduplication token. Scoped to (tenant, eventType)."
+    },
+    "schemaRef": {
+      "type": ["string", "null"],
+      "description": "Canonical pointer to the payload schema, e.g. 'contracts/events/test.result.recorded/1'."
+    },
+    "edge": {
+      "type": ["object", "null"],
+      "description": "Populated when the event was captured at a disconnected edge node and later reconciled.",
+      "properties": {
+        "nodeId": { "type": "string" },
+        "capturedAt": { "type": "string", "format": "date-time" },
+        "reconciledAt": { "type": "string", "format": "date-time" },
+        "clockSkewMs": { "type": "number", "description": "Edge clock delta vs. fabric clock at reconciliation." },
+        "localSequence": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Sequence allocated by the edge node in its own local space for this aggregate. Rule S-1 of ADR-0006."
+        },
+        "branchedFromSeq": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "The fabric sequence for this aggregate that the edge last knew before it branched. Rule S-2 of ADR-0006. Zero means the edge had never synchronised this aggregate."
+        },
+        "clockUntrusted": {
+          "type": "boolean",
+          "default": false,
+          "description": "The site had no trustworthy reference clock. When true, the effectiveAt component of the mutable resolution key is disabled for this event (rule C-9)."
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

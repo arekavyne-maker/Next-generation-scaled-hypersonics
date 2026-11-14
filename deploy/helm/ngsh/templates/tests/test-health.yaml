@@ -1,0 +1,57 @@
+{{/*
+================================================================================
+NGSH — Helm test
+
+`helm test` launches a short-lived pod that probes a platform service's
+/healthz endpoint from inside the cluster. It verifies that the release is
+serving traffic, not merely that its pods are Running.
+
+The probe uses the image's own wget/curl convention: GET /healthz must return
+200 with a JSON body.
+================================================================================
+*/}}
+{{- $v := include "ngsh.effectiveValues" . | fromYaml }}
+{{- if $v.tests.enabled }}
+{{- $target := index $v.services $v.tests.service }}
+{{- if $target.enabled }}
+apiVersion: v1
+kind: Pod
+metadata:
+  name: {{ include "ngsh.fullname" $v }}-test-health
+  labels:
+    {{- include "ngsh.labels" $v | nindent 4 }}
+    app.kubernetes.io/component: test
+  annotations:
+    "helm.sh/hook": test
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+    ngsh.io/deployment-profile: {{ $v.activeProfile | quote }}
+spec:
+  restartPolicy: Never
+  {{- with $v.pod.securityContext }}
+  securityContext:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  containers:
+    - name: health
+      image: {{ include "ngsh.image" (dict "v" $v "svc" (dict "image" $v.tests.image)) | quote }}
+      imagePullPolicy: {{ $v.tests.image.pullPolicy | default $v.global.imagePullPolicy }}
+      command:
+        - /bin/sh
+        - -c
+        - >-
+          wget -q -O - "http://{{ include "ngsh.serviceDNSName" (dict "ctx" $v "svc" $target) }}:{{ $target.port }}{{ $v.tests.path }}"
+          || curl -fsS "http://{{ include "ngsh.serviceDNSName" (dict "ctx" $v "svc" $target) }}:{{ $target.port }}{{ $v.tests.path }}"
+          || exit 1
+      {{- with $v.pod.containerSecurityContext }}
+      securityContext:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      resources:
+        requests:
+          cpu: 10m
+          memory: 16Mi
+        limits:
+          cpu: 100m
+          memory: 64Mi
+{{- end }}
+{{- end }}

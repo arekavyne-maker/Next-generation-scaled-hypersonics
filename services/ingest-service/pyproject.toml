@@ -1,0 +1,17 @@
+[project]
+name = "ngsh-ingest-service"
+version = "0.1.0"
+description = "NGSH ingest service: bulk admission of test, telemetry and process data into the fabric, with lineage and classification accounted for."
+requires-python = ">=3.12"
+license = { text = "Proprietary" }
+dependencies = ["ngsh-core"]
+
+[project.scripts]
+ngsh-ingest-service = "ngsh_ingest.app:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/ngsh_ingest"]

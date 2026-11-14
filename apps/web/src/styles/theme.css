@@ -1,0 +1,90 @@
+/*
+ * NGSH Control Console — theme tokens.
+ *
+ * Dark, dense, technical. One accent, one warning ramp, one classification
+ * ramp. Every colour used by a component is declared here.
+ */
+
+:root {
+  color-scheme: dark;
+
+  /* --- surfaces --- */
+  --bg-base: #0a0d13;
+  --bg-app: #0d1117;
+  --bg-panel: #11161f;
+  --bg-panel-alt: #151b26;
+  --bg-inset: #0b0f16;
+  --bg-raised: #1a212d;
+  --bg-hover: #1e2632;
+  --bg-active: #222b39;
+
+  /* --- lines --- */
+  --border-subtle: #1b222d;
+  --border: #232c3a;
+  --border-strong: #314052;
+
+  /* --- text --- */
+  --text: #c6d1e0;
+  --text-strong: #e6edf6;
+  --text-muted: #8b97a8;
+  --text-faint: #616d7e;
+
+  /* --- accents --- */
+  --accent: #4c9aff;
+  --accent-dim: #2d5c9e;
+  --accent-soft: rgba(76, 154, 255, 0.12);
+  --accent-text: #a6cbff;
+
+  --ok: #3fb950;
+  --ok-soft: rgba(63, 185, 80, 0.12);
+  --warn: #d29922;
+  --warn-soft: rgba(210, 153, 34, 0.13);
+  --danger: #f85149;
+  --danger-soft: rgba(248, 81, 73, 0.13);
+  --info: #58a6ff;
+  --info-soft: rgba(88, 166, 255, 0.12);
+  --violet: #a371f7;
+  --violet-soft: rgba(163, 113, 247, 0.13);
+
+  /* --- classification ramp --- */
+  --cls-unclassified: #3fb950;
+  --cls-cui: #d29922;
+  --cls-restricted: #db6d28;
+  --cls-secret: #f85149;
+  --cls-top-secret: #a371f7;
+
+  /* --- typography --- */
+  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+  --font-size-xs: 10.5px;
+  --font-size-sm: 11.5px;
+  --font-size-md: 12.5px;
+  --font-size-lg: 14px;
+  --font-size-xl: 17px;
+  --font-size-2xl: 22px;
+
+  /* --- metrics --- */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --radius-sm: 3px;
+  --radius: 5px;
+  --radius-lg: 8px;
+
+  --sidebar-width: 232px;
+  --topbar-height: 46px;
+
+  --shadow-panel: 0 1px 0 rgba(255, 255, 255, 0.02), 0 8px 24px rgba(0, 0, 0, 0.35);
+  --focus-ring: 0 0 0 1px var(--bg-app), 0 0 0 3px var(--accent-dim);
+}
+
+/* Light theme is not a product requirement, but the console should never be
+   unreadable if the OS forces a light colour scheme. */
+@media (prefers-color-scheme: light) {
+  :root[data-theme='auto'] {
+    color-scheme: light;
+  }
+}

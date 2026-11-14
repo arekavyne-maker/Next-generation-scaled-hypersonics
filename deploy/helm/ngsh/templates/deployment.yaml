@@ -1,0 +1,267 @@
+{{/*
+================================================================================
+NGSH — Deployments
+
+One Deployment per enabled service. Everything that a deployment profile
+changes — replica count, host networking, node affinity, storage class,
+disruption budget — flows through the effective (profile-merged) values.
+================================================================================
+*/}}
+{{- $v := include "ngsh.effectiveValues" . | fromYaml }}
+{{- range $key, $svc := $v.services }}
+{{- if $svc.enabled }}
+{{- $persistence := include "ngsh.svcPersistence" (dict "v" $v "svc" $svc) | fromYaml }}
+{{- $hpa := include "ngsh.svcAutoscaling" (dict "v" $v "svc" $svc) | fromYaml }}
+{{- $pdb := include "ngsh.svcPodDisruptionBudget" (dict "v" $v "svc" $svc) | fromYaml }}
+{{- $name := include "ngsh.serviceObjectName" (dict "ctx" $v "key" $key) }}
+{{- $nodeSelector := $svc.nodeSelector | default $v.pod.nodeSelector }}
+{{- $tolerations := $svc.tolerations | default $v.pod.tolerations }}
+{{- $affinity := $svc.affinity | default $v.pod.affinity }}
+{{- $spread := $svc.topologySpreadConstraints | default $v.pod.topologySpreadConstraints }}
+{{- $dnsPolicy := $v.pod.dnsPolicy }}
+{{- if not $dnsPolicy }}
+{{- $dnsPolicy = ternary "ClusterFirstWithHostNet" "ClusterFirst" $v.pod.hostNetwork }}
+{{- end }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ $name }}
+  labels:
+    {{- include "ngsh.labels" $v | nindent 4 }}
+    app.kubernetes.io/component: {{ $key }}
+    ngsh.io/service: {{ $svc.name }}
+  annotations:
+    ngsh.io/deployment-profile: {{ $v.activeProfile | quote }}
+    {{- include "ngsh.commonAnnotations" $v | nindent 4 }}
+    {{- if $v.pod.extraPodAnnotations }}
+    {{- toYaml $v.pod.extraPodAnnotations | nindent 4 }}
+    {{- end }}
+    {{- with $svc.podAnnotations }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+spec:
+  {{- if not $hpa.enabled }}
+  replicas: {{ $svc.replicaCount }}
+  {{- end }}
+  revisionHistoryLimit: 5
+  {{- with $v.pod.deploymentStrategy }}
+  strategy:
+    {{- toYaml . | nindent 4 }}
+  {{- else }}
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "ngsh.selectorLabels" $v | nindent 6 }}
+      app.kubernetes.io/component: {{ $key }}
+      ngsh.io/service: {{ $svc.name }}
+  template:
+    metadata:
+      labels:
+        {{- include "ngsh.labels" $v | nindent 8 }}
+        app.kubernetes.io/component: {{ $key }}
+        ngsh.io/service: {{ $svc.name }}
+        {{- with $v.pod.extraPodLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+        {{- with $svc.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      annotations:
+        ngsh.io/deployment-profile: {{ $v.activeProfile | quote }}
+        {{- include "ngsh.commonAnnotations" $v | nindent 8 }}
+        {{- with $v.pod.extraPodAnnotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+        {{- with $svc.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      serviceAccountName: {{ include "ngsh.podServiceAccountName" $v }}
+      automountServiceAccountToken: false
+      {{- if $v.global.imagePullSecrets }}
+      imagePullSecrets:
+        {{- range $v.global.imagePullSecrets }}
+        - name: {{ . }}
+        {{- end }}
+      {{- end }}
+      hostNetwork: {{ $v.pod.hostNetwork }}
+      dnsPolicy: {{ $dnsPolicy }}
+      {{- if $v.pod.priorityClassName }}
+      priorityClassName: {{ $v.pod.priorityClassName }}
+      {{- end }}
+      terminationGracePeriodSeconds: {{ $v.pod.terminationGracePeriodSeconds }}
+      {{- with $v.pod.securityContext }}
+      securityContext:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with $nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with $tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with $affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with $spread }}
+      topologySpreadConstraints:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      volumes:
+        - name: config
+          configMap:
+            name: {{ include "ngsh.configMapName" $v }}
+            defaultMode: 420
+        - name: tmp
+          emptyDir: {}
+        {{- if $persistence.enabled }}
+        - name: data
+          {{- if $persistence.existingClaim }}
+          persistentVolumeClaim:
+            claimName: {{ $persistence.existingClaim }}
+          {{- else }}
+          persistentVolumeClaim:
+            claimName: {{ include "ngsh.serviceObjectName" (dict "ctx" $v "key" $key) }}
+          {{- end }}
+        {{- end }}
+        {{- if $v.serviceAccount.workloadIdentity.enabled }}
+        - name: workload-identity-token
+          projected:
+            defaultMode: 420
+            sources:
+              - serviceAccountToken:
+                  path: token
+                  audience: {{ $v.serviceAccount.workloadIdentity.audience | quote }}
+                  expirationSeconds: {{ $v.serviceAccount.workloadIdentity.expirationSeconds }}
+        {{- end }}
+        {{- with $v.pod.extraVolumes }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+        {{- with $svc.extraVolumes }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      containers:
+        - name: {{ $svc.name }}
+          image: {{ include "ngsh.image" (dict "v" $v "svc" $svc) | quote }}
+          imagePullPolicy: {{ include "ngsh.imagePullPolicy" (dict "v" $v "svc" $svc) }}
+          {{- with $v.pod.containerSecurityContext }}
+          securityContext:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          ports:
+            - name: http
+              containerPort: {{ $svc.port }}
+              protocol: TCP
+          env:
+            - name: NGSH_SERVICE_NAME
+              value: {{ $svc.name | quote }}
+            - name: PORT
+              value: {{ $svc.port | quote }}
+            - name: NGSH_ENVIRONMENT
+              value: {{ $v.global.environment | quote }}
+            - name: NGSH_DEPLOYMENT_PROFILE
+              value: {{ $v.activeProfile | quote }}
+            - name: NGSH_DEPLOYMENT_ZONE
+              value: {{ $v.global.zone | quote }}
+            - name: NGSH_CLASSIFICATION_LEVEL
+              value: {{ $v.config.classificationLevel | quote }}
+            - name: NGSH_TENANT
+              value: {{ $v.config.tenant | quote }}
+            - name: NGSH_LOG_LEVEL
+              value: {{ $v.config.logLevel | quote }}
+            - name: NGSH_LOG_FORMAT
+              value: {{ $v.config.logFormat | quote }}
+            - name: NGSH_GRAPH_BACKEND
+              value: {{ $v.config.graphBackend | quote }}
+            - name: NGSH_GRAPH_NAMESPACE
+              value: {{ $v.config.graphNamespace | quote }}
+            - name: NGSH_CONFIG_FILE
+              value: "/etc/ngsh/ngsh-config.json"
+            - name: OTEL_SERVICE_NAME
+              value: {{ $svc.name | quote }}
+            - name: OTEL_EXPORTER_OTLP_ENDPOINT
+              value: {{ $v.config.otel.endpoint | quote }}
+            - name: OTEL_EXPORTER_OTLP_PROTOCOL
+              value: {{ $v.config.otel.protocol | quote }}
+            - name: OTEL_EXPORTER_OTLP_TLS_INSECURE
+              value: {{ $v.config.otel.tlsInsecure | quote }}
+            - name: OTEL_RESOURCE_ATTRIBUTES
+              value: {{ include "ngsh.otelResourceAttributes" (dict "v" $v "svc" $svc) | quote }}
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "ngsh.secretName" $v }}
+                  key: DATABASE_URL
+            {{- range $up := $svc.upstreams }}
+            {{- $upSvc := index $v.services $up }}
+            - name: NGSH_{{ $up | upper }}_URL
+              value: {{ printf "http://%s:%v" (include "ngsh.serviceDNSName" (dict "ctx" $v "svc" $upSvc)) $upSvc.port | quote }}
+            {{- end }}
+            {{- if $persistence.enabled }}
+            - name: NGSH_DATA_DIR
+              value: {{ $persistence.mountPath | quote }}
+            {{- end }}
+            {{- if $v.serviceAccount.workloadIdentity.enabled }}
+            - name: NGSH_WL_TOKEN_FILE
+              value: {{ printf "%s/token" $v.serviceAccount.workloadIdentity.tokenMountPath | quote }}
+            - name: NGSH_WL_AUDIENCE
+              value: {{ $v.serviceAccount.workloadIdentity.audience | quote }}
+            {{- end }}
+            {{- with $svc.env }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+            {{- with $svc.extraEnv }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          {{- with $svc.envFrom }}
+          envFrom:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- if $svc.probes.startup }}
+          startupProbe:
+            {{- include "ngsh.probe" (dict "probe" $svc.probes.startup) | nindent 12 }}
+          {{- end }}
+          {{- if $svc.probes.liveness }}
+          livenessProbe:
+            {{- include "ngsh.probe" (dict "probe" $svc.probes.liveness) | nindent 12 }}
+          {{- end }}
+          {{- if $svc.probes.readiness }}
+          readinessProbe:
+            {{- include "ngsh.probe" (dict "probe" $svc.probes.readiness) | nindent 12 }}
+          {{- end }}
+          {{- with $svc.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          volumeMounts:
+            - name: config
+              mountPath: /etc/ngsh
+              readOnly: true
+            - name: tmp
+              mountPath: /tmp
+            {{- if $persistence.enabled }}
+            - name: data
+              mountPath: {{ $persistence.mountPath }}
+            {{- end }}
+            {{- if $v.serviceAccount.workloadIdentity.enabled }}
+            - name: workload-identity-token
+              mountPath: {{ $v.serviceAccount.workloadIdentity.tokenMountPath }}
+              readOnly: true
+            {{- end }}
+            {{- with $v.pod.extraVolumeMounts }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+            {{- with $svc.extraVolumeMounts }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+{{- end }}
+{{- end }}
