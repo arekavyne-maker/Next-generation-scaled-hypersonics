@@ -2,66 +2,161 @@
 
 **The digital lab for designing hypersonics.**
 
-NGSH is the connective tissue of a hypersonic programme. Design baselines, factory
-runs, material lots, test results, suppliers, people and threat models all live in
-one append-only record. Every view — the digital thread, search, datasets, KPIs — is
-rebuilt from that record, so any claim can be traced back to its evidence.
+## Abstract
 
-It serves both halves of the mission on one substrate: the strike side (design,
-manufacture, test, industrial scaling) and the shield side (threat modelling, kill
-chains, engagement simulation). They share the same types because they fail for the
-same reasons.
+NGSH is a software platform for the hypersonic enterprise. It provides one
+append-only record for every authoritative fact a programme produces — design
+baselines, manufacturing runs, material lots, test results, suppliers, workforce
+credentials and threat models — and derives every view from that record. The
+digital thread, the search index, the dataset catalogue and the programme KPIs are
+projections, rebuildable at any time.
 
-**Proprietary and confidential software of Crocell Company.** See [Licence](#licence).
+The platform serves both halves of the mission on one substrate. The strike side
+(design, manufacture, test, industrial scaling) and the shield side
+(counter-hypersonic threat modelling, kill chains, engagement simulation) share the
+same types and the same log, because they fail for the same reasons.
 
----
+This document states the problem, proposes the solution, describes how the platform
+works, sets out its scope and limits, and defines how a programme verifies it.
 
-## The problem
-
-Hypersonic programmes fail at the seams, not in the physics.
-
-- The design that was analysed is not the configuration that was built or tested.
-- A process parameter drifts and nobody can identify the affected lots.
-- Requirements are marked verified against evidence that no longer applies.
-- A single-source supplier becomes the critical path during a shortage.
-- Simulation models are used beyond their validated envelope.
-- Red and blue teams model different threats and compare the results anyway.
-- Records can be edited after the fact, so audit becomes an act of trust.
-
-These are data problems before they are engineering problems. NGSH fixes the record
-so they become structurally difficult.
+**Proprietary and confidential software of Crocell Company.** See [§15 Licence](#15-licence).
 
 ---
 
-## The platform
+## 1. Executive summary
+
+Hypersonic programmes do not usually fail on physics. They fail at the seams
+between organisations and tools: the analysed design is not the built configuration,
+the requirement marked verified is supported by evidence that no longer applies, and
+a single-source material becomes the critical path during a shortage. These are data
+problems before they are engineering problems.
+
+NGSH addresses that class of failure directly. It is not a CAD package, a PLM
+system, a manufacturing execution system or a solver. It is the connective layer
+that sits across them and makes their outputs traceable, comparable and hard to
+falsify.
+
+The proposal rests on five commitments:
+
+| Commitment | Consequence |
+|---|---|
+| One immutable record | History is auditable by construction, not by discipline |
+| Derived views | A corrupted projection is an inconvenience, not a data loss |
+| Contracts as data | Eight teams share shapes without drifting |
+| Fail-closed access | The weakest service cannot weaken the programme |
+| Refusal to invent | Missing evidence produces a named gap, never a plausible number |
+
+The platform is implemented and running: **34 capabilities across 8 pillars, 7
+external interfaces, 16 services, 466 tests and two live end-to-end
+demonstrations.** What remains is programme-supplied: real counterpart systems,
+classified data and authority to operate.
+
+---
+
+## 2. Problem statement
+
+### 2.1 The seam problem
+
+A hypersonic programme is a network of specialised organisations — primes,
+material suppliers, national laboratories, test ranges, university partners and
+government programme offices — each running its own tools and keeping its own
+records. The gaps between them are where time and money are lost.
+
+| Failure mode | Consequence |
+|---|---|
+| Design intent diverges from as-built configuration | Tests validate a vehicle that was never manufactured |
+| Test evidence is filed per campaign, not per requirement | Verification status is asserted rather than demonstrated |
+| Material and process history is incomplete | A defect cannot be traced to a lot, a run or a parameter |
+| Supplier exposure is discovered during a shortage | Schedule slips before mitigation can begin |
+| Models are used beyond their validated envelope | Decisions rest on unquantified error |
+| Threat and interceptor models evolve separately | Red and blue do not measure the same threat |
+| Access control is application-specific | Controlled data leaks across programme boundaries |
+| Records can be edited after the fact | Audit and accreditation become an act of trust |
+
+### 2.2 Why existing tools do not close it
+
+Each tool in the chain is individually competent and structurally local. A PLM
+system governs configuration but not test evidence. A test range governs its own
+campaigns but not the requirements they satisfy. A supplier portal sees one tier.
+None of them is designed to answer a cross-boundary question — *which configuration
+was tested, which lot is in this part, can we build forty a year* — and each keeps a
+private record that the others cannot verify.
+
+The gap is not a missing feature. It is a missing **record**: one place where facts
+from every tool and every organisation land in the same shape, under the same access
+rules, with the same guarantees about immutability.
+
+### 2.3 Why now
+
+Three pressures make the seam problem urgent rather than theoretical. Programmes are
+expected to compress design-to-test cycles, which removes the slack that used to
+absorb reconciliation work. Industrial capacity is now a programme risk in its own
+right, which requires evidence rather than assurance. And accreditation regimes
+increasingly require demonstrable data integrity, not documented intent.
+
+A platform that fixes the record once is cheaper than eight organisations fixing
+their own records independently and then reconciling them forever.
+
+---
+
+## 3. Proposed solution
+
+### 3.1 The concept
 
 **One record. Every view derived. Every claim traceable.**
 
-Six principles define the build:
+Every authoritative fact is an event: what happened, who did it, when, at what
+classification, in which programme. Events are validated against a schema, appended
+to a log, committed to a hash-chained ledger, and projected into the digital thread.
 
-1. **The event log is the system of record.** Graph, search, lakehouse and KPIs are
-   projections. Delete one, replay the log, get it back identical.
-2. **Contracts are data.** Twenty-three entity types, ten relations, eleven events
-   and nine invariants live in JSON Schema. Python models are generated; drift fails
-   the build.
-3. **Evidence is immutable.** A test result is never edited. A correction is a new
-   record that supersedes the old one.
-4. **Access fails closed.** Explicit deny wins; unmatched requests are denied;
+Nothing else is authoritative. The graph, the search index, the lakehouse catalogue
+and the KPIs are functions of the log. They can be deleted and rebuilt, and the
+platform proves this in its own test suite.
+
+### 3.2 Operating principles
+
+1. **The log is the system of record.** Read models are disposable; the log is not.
+2. **Contracts are data, not code.** Shapes are JSON Schema; Python models are
+   generated and drift fails the build.
+3. **Evidence is immutable.** A correction supersedes; it never edits.
+4. **Access fails closed.** Explicit deny wins, unmatched requests are denied,
    ambiguous classification is treated as more restricted.
-5. **Nothing derived is anonymous.** Provenance, method and confidence are required
-   on every computed value.
-6. **The platform is portable.** No domain package imports a cloud SDK. The same
-   image runs in an accredited cloud, an on-prem enclave or a disconnected range.
+5. **Derived values name their source.** Provenance, method and confidence are
+   mandatory.
+6. **The platform is portable.** No domain package imports a cloud SDK; placement is
+   configuration, not code.
+
+### 3.3 What the platform is, and is not
+
+It is the connective layer, the record of evidence, and the governance around both.
+
+It is not the weapon: no guidance, navigation, control or flight software. It is not
+a modelling tool: it governs models, it does not run physics. It is not accredited,
+and no configuration in the repository changes that.
 
 ---
 
-## How it works
+## 4. How it works
 
-### Writes
+### 4.1 Three layers
+
+**The contract layer.** Twenty-three entity types, ten relation types, eleven event
+types and nine cross-entity invariants, expressed as JSON Schema. This is the single
+source of truth for shape. A contract change is reviewed before it is coded.
+
+**The foundation.** Six services: ontology, fabric (the log), policy (the decision
+point), audit (the ledger), thread (the projection) and ingest (admission, lineage
+and content-addressed storage).
+
+**The pillars.** Eight domains, each a set of pure rules in a shared library,
+exposed by its own deployable service. A pillar writes facts as events and reads
+them from the projection. Pillars can be deployed and licensed independently.
+
+### 4.2 Write path
 
 ```
 caller ─▶ gateway ─▶ service
-                       ├─ resolve actor from identity provider
+                       ├─ resolve actor from the identity provider
                        ├─ ask the policy service for a decision
                        ├─ validate payload against the contract layer
                        ├─ apply domain rules (pure functions)
@@ -70,33 +165,44 @@ caller ─▶ gateway ─▶ service
                        └─ project event into the thread
 ```
 
-The ledger and the access decision are both written: a decision produces a
-`access.decision.recorded` event *and* a chain entry. Derived reports are stored as
-annotations on the entity they concern, so they rebuild from the log like everything
-else.
+Two details are deliberate. The ledger entry and the access decision are both
+written: an authorisation produces an `access.decision.recorded` event *and* a chain
+entry, because a ledger nobody can query and a queryable history that can be
+rewritten are both weaker than the pair. And derived reports are stored as
+annotations on the entity they concern, so a surge assessment or a coverage report
+rebuilds from the log like everything else.
 
-### Reads
+### 4.3 Read path
 
-Reads go to the projection, never to private service state. Because the projection
-is a pure function of the log, it is disposable. The end-to-end test proves this by
-destroying it and rebuilding from the log alone.
+```
+console ─▶ gateway ─▶ thread ─▶ entities · relations · search · datasets
+                                  ▲
+                                  └── replay from fabric at any time
+```
 
-### Access and audit
+Reads never touch private service state. Because the projection is a pure function
+of the log, destroying it is safe — and tested.
 
-The policy service decides; services enforce. The ledger is a hash chain — each
-entry commits to its predecessor, so a rewritten history is detectable and
-verification is an endpoint, not a promise.
+### 4.4 Access and audit
 
-### Determinism
+The policy service decides; services enforce. Four rules are absolute: explicit deny
+wins, unmatched means denied, ambiguity fails closed, and citizenship plus clearance
+are checked at the point of use.
+
+The ledger is a hash chain. Each entry commits to its predecessor, so an edit breaks
+the chain and the verifier reports where. Verification is an endpoint, not a promise.
+
+### 4.5 Determinism
 
 Monte Carlo draws are hash-derived, not random. Reconciliation, variant generation
-and threat derivation are deterministic. Same inputs, same answer, years later.
+and threat derivation are deterministic. The same inputs produce the same answer
+years later, which is what makes a result reviewable and a rebuild a proof.
 
 ---
 
-## Scope
+## 5. Scope
 
-### Eight pillars, 34 capabilities
+### 5.1 Eight pillars, 34 capabilities
 
 | Pillar | Services | Capabilities |
 |---|---|---|
@@ -112,7 +218,7 @@ and threat derivation are deterministic. Same inputs, same answer, years later.
 Every capability has a tested endpoint. A unit test asserts that every path the
 matrix advertises exists on the owning service's router.
 
-### The data model
+### 5.2 The data model
 
 **23 entity types** — `System`, `Variant`, `Subsystem`, `Part`, `Material`,
 `ProcessPlan`, `ProcessRun`, `TestArticle`, `TestCampaign`, `TestResult`,
@@ -142,10 +248,10 @@ matrix advertises exists on the owning service's router.
 | C-008 | Engagement scenarios are unreadable below their classification |
 | C-009 | Classification may not be lowered in place; a downgrade creates a new entity |
 
-New capabilities are computed over these types. None of the 34 required inventing
-one.
+The count is kept small on purpose. Every type has to earn its place, and none of the
+34 capabilities required inventing one to look complete.
 
-### Seven interfaces
+### 5.3 Seven interfaces
 
 | Id | Interface | Direction |
 |---|---|---|
@@ -160,14 +266,14 @@ one.
 Each boundary validates its payload, enforces its direction and returns a
 content-addressed receipt, so retries are recognisable and duplicates detectable.
 An adapter is a validated simulated counterpart; swapping in the real system changes
-configuration, not the contract.
+configuration, not the contract, the direction rule or the receipt shape.
 
 ---
 
-## The services
+## 6. Services
 
-Every service has its own package, image, Compose entry and Helm block, so a
-programme can deploy one pillar without the others.
+Every service has its own package, image, Compose entry and Helm block. A programme
+can deploy Pillar B without Pillar F.
 
 | Service | Port | Responsibility |
 |---|---|---|
@@ -193,18 +299,98 @@ Every service exposes `/healthz`, `/readyz`, `/v1/service/info` and OpenAPI at
 `/docs`.
 
 A domain rule is a pure function in `libs/ngsh-core`; the service is transport and
-persistence around it. Unit tests cover the rules, HTTP tests cover the transport.
+persistence around it. Unit tests cover rules, HTTP tests cover transport.
 
 ---
 
-## Running it
+## 7. Implementation approach
+
+### 7.1 Delivery model
+
+The build is ordered by dependency, not by enthusiasm.
+
+1. **Foundation first.** Contracts, log, policy, ledger, projection. These cannot be
+   retrofitted once pillars depend on them.
+2. **Pillars independently.** Each pillar is deployable on its own, against the
+   foundation. A programme can start with the pillar that carries its most painful
+   seam.
+3. **Interfaces last, and honestly.** Adapters are validated and deterministic.
+   Certification of the counterpart is a programme activity, not a code activity.
+
+### 7.2 Adoption path
+
+| Phase | Activity | Exit condition |
+|---|---|---|
+| Assess | Run the stack, walk the capability sweep, map the programme's seams | A shortlist of one or two pillars that carry real pain |
+| Pilot | Load one programme's real data through the contracts; connect one interface | Evidence trail for one requirement set, end to end |
+| Extend | Add pillars and interfaces against the same foundation | Independent deploys, shared contract layer |
+| Operate | Hand over to an accredited enclave with real identity and storage | Authority to operate |
+
+Nothing in phases two to four requires a change to the contract layer. That is the
+test of whether the boundary was drawn correctly.
+
+### 7.3 Integration approach
+
+External systems connect through the interface boundary, not through shared tables.
+A source system publishes events or submits validated payloads; the platform returns
+a receipt. This keeps the source's internal model private and makes the integration
+replaceable.
+
+### 7.4 What a programme provides
+
+Real identity federation, counterpart endpoints and credentials, classified data,
+range access, an accredited enclave, and authority to operate. None of these is a
+software deliverable, and none is simulated silently.
+
+---
+
+## 8. Security and governance
+
+| Concern | Handling |
+|---|---|
+| Access | ABAC; decision separate from enforcement; explicit deny; unmatched denied; fail closed |
+| Audit | Hash chain; every decision is both a ledger entry and an event |
+| Classification | Partitioned storage; cross-boundary refusal; ambiguous input treated as more restricted |
+| Identity | Verified actor per request; production provider fails closed without live endpoints |
+| Models | Model card, fidelity score and named approval before use; regeneration never self-approves |
+| Evidence | Append-only; corrections supersede with a reference to the original |
+| Edge | Degraded capture, deterministic reconciliation, human escalation on genuine conflict |
+| Portability | No cloud SDK in any domain package |
+
+The system is designed to be accreditable. It is not accredited.
+
+---
+
+## 9. Verification and evidence
+
+| Gate | Command | Result |
+|---|---|---|
+| Lint and format | `make lint` | Clean |
+| Contracts | `make contracts` | 279 checks |
+| Generated models | `make codegen-check` | No drift |
+| Tests | `make test` | 466 passing |
+| Everything | `make verify` | All gates |
+| Live sweep | `make dev` + `make demo-full` | 34/34 capabilities, 7/7 interfaces, 15 services |
+
+`demo-full` is a completeness gate: it exits non-zero if any capability or interface
+is missing.
+
+```
+Complete-build traversal finished: 34/34 capabilities, 7/7 interfaces, 15 services.
+```
+
+The end-to-end suite ingests data, projects it, traces it, takes a policy decision,
+verifies the audit chain, destroys the projection, rebuilds it from the log alone,
+and asserts the thread returns identical. That single test is the platform claim.
+
+### Running it
 
 Requires Python 3.12+ and `uv`. Docker is optional.
 
 ```bash
 make setup          # install, create ./data
-make verify         # lint, contracts, codegen gate, full test suite
-make dev            # start the sixteen-service platform
+make verify         # all gates
+make dev            # start the platform
 ```
 
 In a second terminal:
@@ -223,59 +409,12 @@ make demo-edge       # the edge capture and reconciliation flow
 | API documentation | http://localhost:8080/docs |
 | Console | http://localhost:5173 |
 
-Keep state out of the tree with `NGSH_DSN="sqlite:////tmp/ngsh.db" NGSH_DATA_DIR=/tmp/ngsh-data make dev`.
-
-### Two examples
-
-Validate against the contract:
-
-```bash
-curl -s -X POST localhost:8080/api/ontology/v1/ontology/validate \
-  -H 'content-type: application/json' \
-  -d '{"kind":"entity","entity":{"id":"TR:1","type":"TestResult","tenant":"ngsh","version":1,
-       "createdAt":"2026-11-14T00:00:00Z","updatedAt":"2026-11-14T00:00:00Z",
-       "classification":{"level":"CUI"},"attributes":{"testMethod":"plasma-arc-heater",
-       "outcome":"PASS","measurements":[{"name":"peak_temperature","value":1840.0,"unit":"K"}]}}}' | jq
-```
-
-Ask for an access decision:
-
-```bash
-curl -s -X POST localhost:8080/api/policy/v1/decisions \
-  -H 'content-type: application/json' \
-  -d '{"subject":{"subjectId":"usr:engineer","kind":"user","clearance":"TOP SECRET",
-       "citizenship":"US","tenant":"ngsh","programs":["NGSH-SHY"],"needToKnow":["NGSH-SHY"]},
-       "action":"read","resource":{"type":"TestResult","id":"TR:1",
-       "classification":{"level":"CUI"},"tenant":"ngsh","program":"NGSH-SHY"}}' | jq
-```
+Keep state out of the tree with
+`NGSH_DSN="sqlite:////tmp/ngsh.db" NGSH_DATA_DIR=/tmp/ngsh-data make dev`.
 
 ---
 
-## Proof
-
-| Gate | Command | Result |
-|---|---|---|
-| Lint and format | `make lint` | Clean |
-| Contracts | `make contracts` | 279 checks |
-| Generated models | `make codegen-check` | No drift |
-| Tests | `make test` | 466 passing |
-| Everything | `make verify` | All gates |
-| Live sweep | `make dev` + `make demo-full` | 34/34 capabilities, 7/7 interfaces, 15 services |
-
-`demo-full` is a completeness gate: it exits non-zero if any capability or interface
-is missing.
-
-```
-Complete-build traversal finished: 34/34 capabilities, 7/7 interfaces, 15 services.
-```
-
-The e2e suite ingests data, projects it, traces it, takes a policy decision, verifies
-the audit chain, destroys the projection, rebuilds it from the log and asserts the
-thread returns identical.
-
----
-
-## Deployment
+## 10. Deployment
 
 The same images run in four postures, chosen by configuration.
 
@@ -291,46 +430,71 @@ docker compose -f deploy/compose/docker-compose.yml up -d --build
 helm lint deploy/helm/ngsh
 ```
 
-No domain package knows which posture it is in. Placement belongs to the programme,
-not to an import statement.
+No domain package knows which posture it is running in. Placement belongs to the
+programme, not to an import statement.
 
-### Security posture
+---
 
-| Concern | Handling |
+## 11. Risks and mitigations
+
+| Risk | Mitigation |
 |---|---|
-| Access | ABAC, decision separate from enforcement, explicit deny, fail closed |
-| Audit | Hash chain; every decision is both a ledger entry and an event |
-| Classification | Partitioned storage, cross-boundary refusal, ambiguous input treated as more restricted |
-| Models | Card, fidelity score and named approval before use; regeneration never self-approves |
-| Evidence | Append-only; corrections supersede with a reference to the original |
-| Edge | Degraded capture, deterministic reconciliation, human escalation on genuine conflict |
-
-Designed to be accreditable. Not accredited.
-
----
-
-## What is not finished
-
-Each item has a working adapter or an explicit fail-closed path.
-
-| Item | State | Programme supplies |
-|---|---|---|
-| Government identity | Local signed assertion; production provider fails closed | Accredited metadata and verification endpoints |
-| Prime PLM and MES | Validated adapter | Endpoint, credentials, mapping |
-| Missile-defence systems | Validated exchange | Connectivity and accreditation |
-| Satellite feeds | Inbound-only boundary | Feed and approval for any outbound path |
-| Range instrumentation | Validated manifests | Streams and network access |
-| LMS and AR/VR | Outbound package export | Partner registration and federation |
-| BI connectors | Outbound report export | Consumer endpoint and credential |
-| PostgreSQL runtime | Dialect implemented; tests run on SQLite | Accredited database service |
-| Container runtime | Compose and Helm validated as files | Registry and cluster |
-| Classified data and ATO | Partitioning and denial paths implemented | Data, enclave and authority to operate |
-
-None of these requires a change to the contract layer.
+| Counterpart systems take longer to certify than expected | Interfaces are replaceable; a simulated adapter exercises the full path meanwhile |
+| Source data is poorer than assumed | Contracts reject malformed records at admission, so gaps surface early and visibly |
+| Accreditation is treated as a documentation exercise | Ledger, partitioning and fail-closed defaults are implemented, not described |
+| Adoption stalls because the record is seen as another silo | One log, one contract layer, and reads through the thread; no second source of truth to reconcile |
+| Model credibility is assumed rather than demonstrated | Fidelity and approval are prerequisites for use, enforced by invariant |
+| A pillar is licensed and the shared layer is under-resourced | The foundation is deliberately small and boring, and is the same for every pillar |
+| Classification handling is inconsistent across partners | Partitioning is enforced below the application and cross-boundary relations are refused |
 
 ---
 
-## Licence
+## 12. Benefits
+
+- **Traceability becomes a query.** Configuration, provenance, verification and cost
+  are derived from one record rather than reconstructed per question.
+- **Verification is demonstrable.** A requirement is verified by reviewed evidence
+  attached to a baselined configuration, not by a status field.
+- **Audit is evidence.** A hash chain and an immutable log turn accreditation from a
+  narrative into a check.
+- **Industrial risk is visible early.** Single-source exposure and surge capacity are
+  computed from supplier and facility facts.
+- **Model credibility is enforced.** A model without a fidelity score cannot quietly
+  become the basis of a decision.
+- **Comparisons are legitimate.** Red and blue resolve to the same threat node, or
+  the comparison is refused.
+- **Deployment fits the programme.** One platform, four postures, no cloud lock-in.
+
+---
+
+## 13. Commercial model
+
+The platform is proprietary to Crocell Company and licensed per pillar. A licensed
+pillar receives the contract layer, the foundation services it depends on and its own
+projections. It reaches upstream data through the event feed, not through a shared
+table, so licensing one pillar does not require licensing the others.
+
+Evaluation access is granted for a defined purpose and is revocable. Production use
+requires a signed agreement. The full terms, including restriction, export control,
+warranty and liability provisions, are in the `LICENSE` file.
+
+---
+
+## 14. Next steps
+
+1. **Run it.** `make setup && make verify && make dev`, then `make demo-full` in a
+   second terminal.
+2. **Pick the seam.** Identify the pillar whose failure mode is currently most
+   expensive.
+3. **Load real data.** One requirement set, one article, one campaign, through the
+   contracts.
+4. **Connect one interface.** Validate an adapter against a real counterpart.
+5. **Define the accreditation path.** Enclave, identity federation, storage and
+   authority to operate.
+
+---
+
+## 15. Licence
 
 Proprietary and confidential software of **Crocell Company**.
 Copyright © 2026 Crocell Company. All rights reserved.
