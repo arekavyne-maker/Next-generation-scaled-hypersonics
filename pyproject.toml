@@ -3,7 +3,7 @@ name = "ngsh"
 version = "0.1.0"
 description = "Next-Generation Scaled Hypersonics platform: shared ontology, event-sourced data fabric, digital thread and zero-trust access control."
 requires-python = ">=3.12"
-license = { text = "Proprietary" }
+license = { text = "Proprietary — Copyright © 2026 Crocell Company. All rights reserved." }
 dependencies = [
     "ngsh-core",
     "ngsh-ontology-service",

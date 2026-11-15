@@ -1,0 +1,145 @@
+NGSH — NEXT-GENERATION SCALED HYPERSONICS
+PROPRIETARY AND CONFIDENTIAL
+
+Copyright © 2026 Crocell Company. All rights reserved.
+
+This software, together with its source code, object code, documentation,
+contracts, schemas, data models, designs, architecture records and any
+associated materials (collectively, the "Software"), is proprietary and
+confidential information owned by Crocell Company ("Crocell").
+
+1. OWNERSHIP
+
+   Crocell is and remains the sole and exclusive owner of the Software and of
+   all intellectual property rights therein, including all copyright, trade
+   secret, patent, database and moral rights. No title, ownership interest or
+   licence is transferred to any person by reason of access to, possession of,
+   or use of the Software, except as expressly granted in a separate written
+   agreement signed by an authorised representative of Crocell.
+
+2. LIMITED EVALUATION RIGHT
+
+   Where access to the Software has been lawfully granted by Crocell, the
+   recipient may view and execute the Software solely for the purpose of
+   internal evaluation and verification of its fitness for a prospective
+   licensed use. This limited right is revocable at any time, without cause
+   and without notice, and terminates automatically on any breach of this
+   licence.
+
+3. RESTRICTIONS
+
+   Except as expressly permitted in a separate written agreement with Crocell,
+   the recipient shall not:
+
+   (a) copy, reproduce, publish, distribute, sublicense, sell, resell, lease,
+       lend, rent or otherwise make the Software available to any third party;
+
+   (b) modify, adapt, translate, merge or create derivative works of the
+       Software, in whole or in part;
+
+   (c) reverse engineer, decompile, disassemble or otherwise attempt to derive
+       the source code, underlying ideas, algorithms, file formats or
+       interoperability interfaces of any component supplied only in compiled
+       form, except to the extent such restriction is prohibited by applicable
+       law;
+
+   (d) remove, obscure or alter any proprietary notice, copyright statement,
+       classification marking, licence identifier or attribution contained in
+       or affixed to the Software;
+
+   (e) use the Software to provide a commercial service, hosted service,
+       managed service or time-sharing arrangement to any third party; or
+
+   (f) disclose the Software, or any performance, benchmark, security or
+       architectural information concerning it, to any third party without
+       Crocell's prior written consent.
+
+4. CONFIDENTIALITY
+
+   The Software is confidential information. The recipient shall protect it
+   with at least the degree of care it applies to its own confidential
+   information of like importance, and in no event less than reasonable care,
+   and shall use it only for the purposes permitted by this licence. The
+   recipient shall notify Crocell promptly upon becoming aware of any
+   unauthorised access to or disclosure of the Software.
+
+5. EXPORT CONTROL AND SANCTIONS
+
+   The Software may be subject to the export control laws and regulations of
+   the United States, including the International Traffic in Arms Regulations
+   (ITAR, 22 C.F.R. Parts 120–130), the Export Administration Regulations
+   (EAR, 15 C.F.R. Parts 730–774) and applicable sanctions administered by the
+   U.S. Department of the Treasury, Office of Foreign Assets Control (OFAC).
+
+   The recipient shall not export, re-export, transfer, release or otherwise
+   make the Software available, directly or indirectly, to any destination,
+   entity or person prohibited by such laws and regulations, or to any person
+   other than a U.S. person where a licence or authorisation is required,
+   without first obtaining all necessary authorisations from the competent
+   U.S. government authority. The recipient is solely responsible for
+   compliance with all applicable export control and sanctions requirements.
+
+6. UNITED STATES GOVERNMENT RIGHTS
+
+   The Software is a "commercial product" and "commercial computer software"
+   as those terms are defined in 48 C.F.R. §2.101, and is provided to the
+   United States Government only under the rights and restrictions set forth
+   in this licence and in any applicable FAR/DFARS clauses incorporated into a
+   separate written agreement.
+
+7. NO WARRANTY
+
+   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+   IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+   FITNESS FOR A PARTICULAR PURPOSE, TITLE, NON-INFRINGEMENT, ACCURACY AND
+   FREEDOM FROM DEFECTS. CROCELL DOES NOT WARRANT THAT THE SOFTWARE WILL
+   OPERATE WITHOUT INTERRUPTION OR ERROR, OR THAT ANY DEFECT WILL BE CORRECTED.
+   NO ADVICE OR INFORMATION, WHETHER ORAL OR WRITTEN, OBTAINED FROM CROCELL
+   SHALL CREATE ANY WARRANTY NOT EXPRESSLY STATED HEREIN.
+
+8. LIMITATION OF LIABILITY
+
+   TO THE MAXIMUM EXTENT PERMITTED BY APPLICABLE LAW, CROCELL SHALL NOT BE
+   LIABLE FOR ANY INDIRECT, INCIDENTAL, SPECIAL, CONSEQUENTIAL, EXEMPLARY OR
+   PUNITIVE DAMAGES, OR FOR ANY LOSS OF PROFITS, REVENUE, DATA, GOODWILL OR
+   BUSINESS OPPORTUNITY, ARISING OUT OF OR RELATING TO THE SOFTWARE OR THIS
+   LICENCE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGES. CROCELL'S
+   TOTAL AGGREGATE LIABILITY ARISING OUT OF OR RELATING TO THIS LICENCE SHALL
+   NOT EXCEED ONE HUNDRED UNITED STATES DOLLARS (US$100).
+
+9. THIRD-PARTY COMPONENTS
+
+   The Software incorporates or depends upon third-party components that are
+   licensed separately under their own terms, including but not limited to
+   Python packages and JavaScript libraries. Those components remain governed
+   by their respective licences, and nothing in this licence restricts any
+   right the recipient may have under those licences. A written offer to
+   provide applicable third-party notices is available on request from
+   Crocell.
+
+10. TERMINATION
+
+    This licence and all rights granted under it terminate automatically and
+    immediately upon any breach of its terms, or upon notice from Crocell. On
+    termination the recipient shall cease all use of the Software and destroy
+    or permanently erase all copies in its possession or control, and shall
+    certify that destruction in writing if requested.
+
+11. GOVERNING LAW
+
+    This licence is governed by the laws of the jurisdiction in which Crocell
+    is organised, without regard to its conflict-of-laws principles. The
+    parties submit to the exclusive jurisdiction of the courts of that
+    jurisdiction. Nothing in this licence limits Crocell's right to seek
+    injunctive or other equitable relief in any competent court.
+
+12. ENTIRE AGREEMENT
+
+    This licence constitutes the entire agreement between the parties with
+    respect to its subject matter and supersedes all prior understandings,
+    whether written or oral. Any additional or different terms in a separate
+    written agreement signed by Crocell shall prevail over this licence to the
+    extent of any conflict.
+
+Licensing and evaluation enquiries should be directed to Crocell Company,
+Legal Department.
