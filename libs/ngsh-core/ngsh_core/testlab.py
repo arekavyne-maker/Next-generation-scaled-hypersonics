@@ -86,9 +86,13 @@ def surface_anomalies(
             minimum = rule.get("min")
             maximum = rule.get("max")
             if isinstance(minimum, int | float) and value < minimum:
-                anomalies.append({"measurement": name, "kind": "below_limit", "value": value, "limit": minimum})
+                anomalies.append(
+                    {"measurement": name, "kind": "below_limit", "value": value, "limit": minimum}
+                )
             if isinstance(maximum, int | float) and value > maximum:
-                anomalies.append({"measurement": name, "kind": "above_limit", "value": value, "limit": maximum})
+                anomalies.append(
+                    {"measurement": name, "kind": "above_limit", "value": value, "limit": maximum}
+                )
             if measurement.get("unit") is None:
                 anomalies.append({"measurement": name, "kind": "missing_unit", "value": value})
 
@@ -152,7 +156,8 @@ def curate_campaign(campaign: dict[str, Any], results: list[dict[str, Any]]) -> 
         "configurationSnapshots": sum(
             1 for result in results if isinstance(result.get("configurationSnapshot"), dict)
         ),
-        "curated": total > 0 and all(
+        "curated": total > 0
+        and all(
             isinstance(result.get("configurationSnapshot"), dict) and result["configurationSnapshot"]
             for result in results
         ),
@@ -271,9 +276,7 @@ def range_capacity(
             raise ValidationError(f"range {range_id} must declare a positive capacityPerPeriod")
 
         range_slots = [
-            slot
-            for slot in slots
-            if (slot.get("facilityId") == range_id) and _slot_is_active(slot)
+            slot for slot in slots if (slot.get("facilityId") == range_id) and _slot_is_active(slot)
         ]
         conflicts: list[dict[str, Any]] = []
         for index, slot in enumerate(range_slots):
@@ -305,8 +308,10 @@ def range_capacity(
         total_capacity += capacity
         total_booked += booked
         utilisation = round(booked / capacity, 4)
-        feasible = utilisation <= 1.0 and not conflicts and (
-            not isinstance(telemetry, int | float) or telemetry >= required_telemetry_coverage
+        feasible = (
+            utilisation <= 1.0
+            and not conflicts
+            and (not isinstance(telemetry, int | float) or telemetry >= required_telemetry_coverage)
         )
         findings: list[str] = []
         if utilisation > 1.0:
@@ -328,9 +333,7 @@ def range_capacity(
                 "utilisation": utilisation,
                 "remaining": max(capacity - booked, 0),
                 "telemetryCoverage": telemetry,
-                "instrumentation": sorted(
-                    {str(item) for item in row.get("instrumentation") or []}
-                ),
+                "instrumentation": sorted({str(item) for item in row.get("instrumentation") or []}),
                 "targetsAvailable": row.get("targetsAvailable"),
                 "accreditations": sorted(str(item) for item in row.get("accreditations") or []),
                 "classificationCeiling": row.get("classificationCeiling"),
@@ -468,11 +471,7 @@ def optimise_schedule(
         )
 
     objective = round(
-        sum(
-            assignment["priority"] / (1 + assignment["completionDay"])
-            for assignment in assignments
-        )
-        * 100,
+        sum(assignment["priority"] / (1 + assignment["completionDay"]) for assignment in assignments) * 100,
         4,
     )
 
@@ -489,7 +488,8 @@ def optimise_schedule(
         "improvementPct": improvement,
         "constraintsRespected": not any(
             str(assignment.get("classification") or "") for assignment in assignments
-        ) or all(
+        )
+        or all(
             _eligible_range(
                 {"classification": assignment.get("classification")},
                 range_state[assignment["rangeId"]],
@@ -519,8 +519,7 @@ def _baseline_objective(
     if not isinstance(rows, list):
         return None
     priorities = {
-        str(item.get("demandId") or item.get("id")): int(item.get("priority") or 0)
-        for item in demands
+        str(item.get("demandId") or item.get("id")): int(item.get("priority") or 0) for item in demands
     }
     total = 0.0
     for row in rows:
@@ -671,9 +670,7 @@ def fidelity_registry(
             "overdueCount": sum(1 for item in approval_queue if item["overdue"]),
             "driftBreaches": sum(1 for entry in entries if entry["drift"]["breach"]),
             "withdrawnApprovals": sum(
-                1
-                for entry in entries
-                if entry["approvedForUse"] and not entry["effectiveApproval"]
+                1 for entry in entries if entry["approvedForUse"] and not entry["effectiveApproval"]
             ),
         },
     }

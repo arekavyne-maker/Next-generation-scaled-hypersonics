@@ -67,9 +67,7 @@ def test_anomalies_surface_limit_breaches_without_changing_the_outcome():
 
 
 def test_anomalies_surface_a_trend_departure_against_the_campaign():
-    reference = [
-        {"measurements": [{"name": "temp", "value": value}]} for value in (1000, 1010, 990, 1005)
-    ]
+    reference = [{"measurements": [{"name": "temp", "value": value}]} for value in (1000, 1010, 990, 1005)]
     report = surface_anomalies(
         {"id": "TR:9", "measurements": [{"name": "temp", "value": 1400, "unit": "K"}]},
         reference_results=reference,

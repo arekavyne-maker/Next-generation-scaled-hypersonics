@@ -40,6 +40,7 @@ from ngsh_core.publish import (
     relation_event,
 )
 from ngsh_core.store import open_database
+from ngsh_core.threatmodel import derive_threat_model, detection_envelope, model_attributes
 
 SERVICE_NAME = "engagement"
 DESCRIPTION = (
@@ -113,6 +114,142 @@ async def create_threat(request: Request, body: dict[str, Any] = Body(...)) -> d
     return {"threat": document}
 
 
+@router.get("/threat-models", summary="Derived threat digital twins")
+async def threat_models(request: Request) -> dict[str, Any]:
+    models = [
+        {
+            "modelId": entity["id"],
+            **(entity.get("attributes") or {}),
+        }
+        for entity in _projector(request).entities(entity_type="Model", limit=5000)
+        if _attrs(entity).get("modelType") == "THREAT_KINEMATIC"
+    ]
+    models.sort(key=lambda row: str(row["modelId"]))
+    return {"models": models, "count": len(models)}
+
+
+@router.get("/threat-models/{model_id}", summary="One derived threat model")
+async def threat_model(request: Request, model_id: str) -> dict[str, Any]:
+    entity = _require(request, "Model", model_id)
+    if _attrs(entity).get("modelType") != "THREAT_KINEMATIC":
+        raise NotFoundError(f"model {model_id!r} is not a threat model")
+    return {"modelId": model_id, "attributes": _attrs(entity)}
+
+
+@router.get("/threat-models/{model_id}/envelope", summary="Detection envelope of a threat model")
+async def threat_model_envelope(
+    request: Request, model_id: str, altitudeM: list[float] = Query(default=[])
+) -> dict[str, Any]:
+    entity = _require(request, "Model", model_id)
+    estimate = ((_attrs(entity).get("runtime") or {}).get("estimate")) or {}
+    if not estimate:
+        raise ValidationError(f"model {model_id!r} carries no derived estimate")
+    return detection_envelope(estimate, altitudes=altitudeM or None)
+
+
+@router.post("/threat-models", summary="Derive a threat digital twin", status_code=201)
+async def create_threat_model(request: Request, body: dict[str, Any] = Body(...)) -> JSONResponse:
+    """Derive the model from recorded facts and put it in the digital thread.
+
+    The derivation is deterministic, so asking twice for the same facts returns
+    the existing model rather than an unbounded supply of near-duplicates. The
+    resulting ``Model`` is unapproved: a threat estimate that can steer an
+    engagement needs a human release under C-004.
+    """
+    threat_id = body.get("threatId")
+    if not isinstance(threat_id, str) or not threat_id:
+        raise ValidationError("'threatId' is required")
+    threat = _require(request, "ThreatSystem", threat_id)
+    assumptions = body.get("assumptions")
+    if assumptions is not None and not isinstance(assumptions, dict):
+        raise ValidationError("'assumptions' must be an object")
+
+    settings: Settings = request.app.state.settings
+    actor = actor_for(settings, request)
+    generated_at = body.get("generatedAt")
+    derived = derive_threat_model(
+        {**_attrs(threat), "id": threat_id},
+        model_id=None,
+        generated_at=generated_at if isinstance(generated_at, str) else None,
+        assumptions=assumptions,
+    )
+
+    for entity in _projector(request).entities(entity_type="Model", limit=5000):
+        runtime = _attrs(entity).get("runtime") or {}
+        existing = runtime.get("estimate") or {}
+        if (
+            _attrs(entity).get("modelType") == "THREAT_KINEMATIC"
+            and runtime.get("threatId") == threat_id
+            and existing.get("digest") == derived["digest"]
+        ):
+            return JSONResponse(
+                status_code=200,
+                content={
+                    "modelId": entity["id"],
+                    "attributes": _attrs(entity),
+                    "derived": existing,
+                    "idempotent": True,
+                },
+            )
+
+    model_id = body.get("modelId") or f"MDL:{new_ulid()}"
+    if not isinstance(model_id, str) or not model_id.startswith("MDL:"):
+        raise ValidationError("a threat model id must start with 'MDL:'")
+    derived["modelId"] = model_id
+    attributes = model_attributes(derived)
+    model_document = entity_document(
+        "Model",
+        model_id,
+        attributes,
+        tenant=settings.tenant,
+        program=settings.program,
+        created_by=actor.subjectId,
+        provenance={"source": "engagement-service", "method": "threat-model-derivation"},
+    )
+    model_version_ids = list(_attrs(threat).get("modelVersionIds") or [])
+    if model_id not in model_version_ids:
+        model_version_ids.append(model_id)
+    threat_attributes = {**_attrs(threat), "modelVersionIds": model_version_ids}
+    threat_document = entity_document(
+        "ThreatSystem",
+        threat_id,
+        threat_attributes,
+        tenant=settings.tenant,
+        program=settings.program,
+        created_by=threat.get("createdBy") or actor.subjectId,
+        classification=(threat.get("classification") or {}).get("level") or "RESTRICTED",
+        version=int(threat.get("version") or 1) + 1,
+        provenance={"source": "engagement-service", "method": "threat-model-link"},
+    )
+    await publish(
+        request,
+        entity_event(
+            model_document,
+            actor,
+            event_type="entity.created",
+            sequence=1,
+            registry=request.app.state.registry,
+        ),
+        entity_event(
+            threat_document,
+            actor,
+            event_type="entity.updated",
+            sequence=next_sequence(request.app.state.executor, threat_id),
+            registry=request.app.state.registry,
+        ),
+    )
+    return JSONResponse(
+        status_code=201,
+        content={
+            "modelId": model_id,
+            "attributes": attributes,
+            "derived": derived,
+            "idempotent": False,
+            "requiresApproval": True,
+        },
+    )
+
+
 @router.post("/scenarios", summary="Create an engagement scenario", status_code=201)
 async def create_scenario(request: Request, body: dict[str, Any] = Body(...)) -> JSONResponse:
     name = body.get("name")
@@ -160,7 +297,9 @@ async def create_scenario(request: Request, body: dict[str, Any] = Body(...)) ->
 
 
 @router.post("/scenarios/{scenario_id}/batch", summary="Run a deterministic engagement batch")
-async def batch(request: Request, scenario_id: str, body: dict[str, Any] = Body(default={})) -> dict[str, Any]:
+async def batch(
+    request: Request, scenario_id: str, body: dict[str, Any] = Body(default={})
+) -> dict[str, Any]:
     """Run a batch and record its run count, seed and confidence on the scenario.
 
     F-2 requires the study's parameters to live on the ``EngagementScenario``,
@@ -236,9 +375,7 @@ async def kill_chain_view(
         if entity["id"] in observation_ids
     ]
     # Any approved model can assess an engagement; the stage reports which.
-    models = [
-        _attrs(entity) for entity in projector.entities(entity_type="Model", limit=5000)
-    ]
+    models = [_attrs(entity) for entity in projector.entities(entity_type="Model", limit=5000)]
 
     return kill_chain(
         observation=observations[0] if observations else None,
@@ -363,9 +500,7 @@ async def fire_control_from_observations(
 
         error = measured.get("solutionErrorM")
         if isinstance(error, int | float):
-            solutions.append(
-                {"solutionId": f"{observation_id}:solution", "errorM": error}
-            )
+            solutions.append({"solutionId": f"{observation_id}:solution", "errorM": error})
 
     return {
         "observationIds": sorted(str(item) for item in observation_ids),
@@ -381,7 +516,9 @@ async def fire_control_from_observations(
 # -- F-4: interim architecture workbench ------------------------------------
 
 
-@router.post("/candidates/evaluate", summary="Compose and virtually evaluate an interim candidate", status_code=201)
+@router.post(
+    "/candidates/evaluate", summary="Compose and virtually evaluate an interim candidate", status_code=201
+)
 async def evaluate_candidate(request: Request, body: dict[str, Any] = Body(...)) -> JSONResponse:
     """Compose a candidate, validate its models, run it and store the scenario.
 

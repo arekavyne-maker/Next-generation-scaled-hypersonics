@@ -78,7 +78,9 @@ async def supply_risks(request: Request, limit: int = Query(2000, ge=1, le=5000)
     ]
     reconstitutes = projector.relations(relation_type="reconstitutes", limit=5000)
     targets = {
-        edge["to"]["id"] for edge in reconstitutes if isinstance(edge.get("to"), dict) and edge["to"].get("id")
+        edge["to"]["id"]
+        for edge in reconstitutes
+        if isinstance(edge.get("to"), dict) and edge["to"].get("id")
     }
     findings = single_source_risks(parts, reconstitutes_targets=targets)
     return {"findings": findings, "count": len(findings)}

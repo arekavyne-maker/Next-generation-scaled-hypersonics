@@ -212,7 +212,49 @@ def assemble_genealogy(
 
     hops: list[dict[str, Any]] = []
     gaps: list[str] = []
+
+    def node_present(node_id: str, declared_type: str = "") -> bool:
+        reference_type = declared_type.upper()
+        if reference_type in {"PROCESSRUN", "PROCESS_RUN", "PR"}:
+            return node_id in known_runs
+        if reference_type in {"MATERIAL", "MAT"}:
+            return node_id in known_materials
+        if reference_type in {"PART"}:
+            return node_id in known_parts
+        # The contract's chainOfCustody carries node ids, not always a type.
+        # Resolve against every known set so a transfer is never reported
+        # missing merely because its type was not repeated in the record.
+        return node_id in known_runs or node_id in known_materials or node_id in known_parts
+
     for index, hop in enumerate(chain):
+        from_node = str(hop.get("fromNodeId") or "")
+        to_node = str(hop.get("toNodeId") or "")
+        if from_node or to_node:
+            # The ontology shape: one transfer between two nodes.
+            from_present = node_present(from_node) if from_node else False
+            to_present = node_present(to_node) if to_node else False
+            if not from_node or not to_node:
+                gaps.append(f"hop {index} does not name both a source and a destination")
+            else:
+                if not from_present:
+                    gaps.append(f"custody node {from_node} is referenced but not present")
+                if not to_present:
+                    gaps.append(f"custody node {to_node} is referenced but not present")
+            hops.append(
+                {
+                    "sequence": index + 1,
+                    "fromNodeId": from_node,
+                    "toNodeId": to_node,
+                    "transferredAt": hop.get("transferredAt"),
+                    "transferType": hop.get("transferType"),
+                    "quantity": hop.get("quantity"),
+                    "present": bool(from_present and to_present),
+                }
+            )
+            continue
+
+        # A compact hop: one entity reference. Kept because an importer may
+        # publish a material or run reference without the transfer framing.
         reference_type = str(hop.get("type") or hop.get("entityType") or "").upper()
         reference_id = str(hop.get("id") or hop.get("entityId") or "")
         exists = True
@@ -226,7 +268,8 @@ def assemble_genealogy(
             gaps.append(f"hop {index} names no entity")
             exists = False
         elif not exists:
-            gaps.append(f"{reference_type or 'unknown type'} {reference_id} is referenced but not present")
+            declared = reference_type or "unknown type"
+            gaps.append(f"{declared} {reference_id} is referenced but not present")
         hops.append({"sequence": index + 1, "type": reference_type, "id": reference_id, "present": exists})
 
     return {

@@ -49,9 +49,7 @@ def _seed(app, actor: Actor, documents: list[dict[str, Any]], relations: list[di
 
 
 def _relation(relation_type: str, source: tuple[str, str], target: tuple[str, str]) -> dict[str, Any]:
-    return relation_document(
-        relation_type, source, target, tenant="ngsh", asserted_by="usr:engineer"
-    )
+    return relation_document(relation_type, source, target, tenant="ngsh", asserted_by="usr:engineer")
 
 
 @pytest.fixture
@@ -175,7 +173,12 @@ def test_programme_traversal_ties_all_pillars(programme, operator):
     workforce = clients["workforce"]
     skill = workforce.post(
         "/v1/skills",
-        json={"name": "CMC layup", "code": "CMC-1", "category": "MANUFACTURING", "clearanceRequired": "SECRET"},
+        json={
+            "name": "CMC layup",
+            "code": "CMC-1",
+            "category": "MANUFACTURING",
+            "clearanceRequired": "SECRET",
+        },
     )
     assert skill.status_code == 201
     skill_id = skill.json()["skill"]["id"]
@@ -194,9 +197,10 @@ def test_programme_traversal_ties_all_pillars(programme, operator):
     )
     assert person.status_code == 201
     person_id = person.json()["person"]["id"]
-    assert workforce.post(
-        "/v1/credentials", json={"personId": person_id, "skillId": skill_id}
-    ).status_code == 201
+    assert (
+        workforce.post("/v1/credentials", json={"personId": person_id, "skillId": skill_id}).status_code
+        == 201
+    )
     assert workforce.get(
         "/v1/work-authorisation", params={"personId": person_id, "skillId": skill_id}
     ).json()["allowed"]
@@ -261,19 +265,20 @@ def test_programme_traversal_ties_all_pillars(programme, operator):
     assert rate["meetsDemand"] is True
 
     # -- Pillar C closes the twin loop from the evidence --------------------
-    validation = testlab.post(
-        "/v1/twin-validation", json={"testResultId": result_id, "modelId": "MDL:1"}
-    )
+    validation = testlab.post("/v1/twin-validation", json={"testResultId": result_id, "modelId": "MDL:1"})
     assert validation.status_code == 200
     assert validation.json()["fidelity"] == 0.72
 
     # -- Pillar D: exposure becomes a programme risk, then a play -----------
     supply = clients["supply"]
     assert supply.get("/v1/supply-risks").json()["count"] == 1
-    assert supply.post(
-        "/v1/reconstitutes",
-        json={"fromRef": {"type": "Supplier", "id": "SUP:1"}, "toRef": {"type": "Part", "id": "PART:1"}},
-    ).status_code == 201
+    assert (
+        supply.post(
+            "/v1/reconstitutes",
+            json={"fromRef": {"type": "Supplier", "id": "SUP:1"}, "toRef": {"type": "Part", "id": "PART:1"}},
+        ).status_code
+        == 201
+    )
     assert supply.get("/v1/supply-risks").json()["count"] == 0
     surge = supply.post(
         "/v1/surge", json={"facilityId": "FAC:1", "demandUnits": 50, "horizonDays": 120}

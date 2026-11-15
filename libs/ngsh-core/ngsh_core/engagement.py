@@ -238,9 +238,7 @@ def fire_control_quality(
     for row in handover_rows:
         handover_id = str(row.get("handoverId") or row.get("id") or "")
         latency = row.get("latencyMs")
-        latency_ok = not isinstance(latency, int | float) or latency <= float(
-            limits["maxHandoverLatencyMs"]
-        )
+        latency_ok = not isinstance(latency, int | float) or latency <= float(limits["maxHandoverLatencyMs"])
         if row.get("continuous") is not False and latency_ok:
             good_handovers += 1
         if handover_id:
@@ -331,13 +329,9 @@ def _envelope_refusals(
         minimum = bound.get("min")
         maximum = bound.get("max")
         if isinstance(minimum, int | float) and value < minimum:
-            refusals.append(
-                f"{model.get('id')}: {dimension}={value} is below the envelope minimum {minimum}"
-            )
+            refusals.append(f"{model.get('id')}: {dimension}={value} is below the envelope minimum {minimum}")
         if isinstance(maximum, int | float) and value > maximum:
-            refusals.append(
-                f"{model.get('id')}: {dimension}={value} is above the envelope maximum {maximum}"
-            )
+            refusals.append(f"{model.get('id')}: {dimension}={value} is above the envelope maximum {maximum}")
     return refusals
 
 
@@ -489,9 +483,7 @@ def load_plugin(
     for dependency in manifest.get("dependencies") or []:
         bounds = dependency.get("envelope") or {}
         if not isinstance(bounds, dict):
-            refusals.append(
-                f"dependency {dependency.get('name')!r} declares a non-object envelope"
-            )
+            refusals.append(f"dependency {dependency.get('name')!r} declares a non-object envelope")
             continue
         for dimension, bound in bounds.items():
             if not isinstance(bound, dict) or dimension not in envelope:
@@ -637,9 +629,7 @@ def co_simulation(
         },
         "comparison": {
             "interceptProbabilityDelta": round(blue_intercept - red_intercept, 4),
-            "meanPkDelta": round(
-                blue["statistics"]["meanPk"] - red["statistics"]["meanPk"], 4
-            ),
+            "meanPkDelta": round(blue["statistics"]["meanPk"] - red["statistics"]["meanPk"], 4),
             "runs": runs,
             "seed": seed,
         },

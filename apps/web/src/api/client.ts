@@ -14,6 +14,7 @@
  */
 
 import type {
+  CapabilityMatrix,
   CoverageResponse,
   EntityWithRelations,
   EventEnvelope,
@@ -29,6 +30,7 @@ import type {
   OntologyTypeDetail,
   PolicyDecisionRequest,
   PolicyDecisionResponse,
+  PlatformStatus,
   PolicyList,
   ServiceName,
   TraceResponse,
@@ -502,6 +504,28 @@ export function submitIngest(payload: IngestRequest, signal?: AbortSignal): Prom
     method: 'POST',
     body: payload,
     mock: () => mock.mockIngest(payload),
+    signal,
+  });
+}
+
+/* ------------------------------------------------------------------ */
+/* Gateway — the platform as a whole                                    */
+/* ------------------------------------------------------------------ */
+
+export function fetchPlatformStatus(signal?: AbortSignal): Promise<PlatformStatus> {
+  return request<PlatformStatus>({
+    service: 'gateway',
+    path: '/v1/platform/status',
+    mock: () => mock.mockPlatformStatus(),
+    signal,
+  });
+}
+
+export function fetchPlatformCapabilities(signal?: AbortSignal): Promise<CapabilityMatrix> {
+  return request<CapabilityMatrix>({
+    service: 'gateway',
+    path: '/v1/platform/capabilities',
+    mock: () => mock.mockPlatformCapabilities(),
     signal,
   });
 }

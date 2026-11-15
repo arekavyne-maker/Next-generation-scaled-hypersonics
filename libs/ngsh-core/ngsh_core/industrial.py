@@ -95,9 +95,7 @@ def surge_readiness(
     if not isinstance(horizon_days, int) or horizon_days <= 0:
         raise ValidationError("'horizonDays' must be a positive integer")
     if confidence_level not in NORMAL_QUANTILES:
-        raise ValidationError(
-            f"'confidenceLevel' must be one of {sorted(NORMAL_QUANTILES)}"
-        )
+        raise ValidationError(f"'confidenceLevel' must be one of {sorted(NORMAL_QUANTILES)}")
 
     base = surge_plan(
         facility=facility,
@@ -146,9 +144,7 @@ def surge_readiness(
     if not suppliers:
         gaps.append("no supplier evidence was supplied, so the risk factor is an assumption")
     if not base["meetsDemand"]:
-        gaps.append(
-            f"achievable output {base['achievableUnits']:.1f} is below demand {demand_units}"
-        )
+        gaps.append(f"achievable output {base['achievableUnits']:.1f} is below demand {demand_units}")
 
     return {
         "facilityId": facility.get("id"),
@@ -161,9 +157,7 @@ def surge_readiness(
         "confidenceLevel": confidence_level,
         "intervalMethod": "supplier-risk-normal-approximation",
         "owner": owner,
-        "status": (
-            "READY" if base["meetsDemand"] else "SHORTFALL"
-        ),
+        "status": ("READY" if base["meetsDemand"] else "SHORTFALL"),
         "verified": bool(twin_run_id and owner and suppliers),
         "evidence": {
             **evidence,
@@ -272,7 +266,11 @@ def affordability_trace(
             if not check["qualityOk"]:
                 violations.append({"requirementId": requirement_id, **check})
 
-        amount = sum(float(estimate["amount"]) for estimate in attached if isinstance(estimate.get("amount"), int | float))
+        amount = sum(
+            float(estimate["amount"])
+            for estimate in attached
+            if isinstance(estimate.get("amount"), int | float)
+        )
         confidences = [
             float(estimate["confidence"])
             for estimate in attached
@@ -307,7 +305,8 @@ def affordability_trace(
             "missing": [row["requirementId"] for row in rows if not row["traced"]],
         },
         "qualityViolations": violations,
-        "allEstimatesMeasured": bool(traced) and all(
+        "allEstimatesMeasured": bool(traced)
+        and all(
             str(estimate.get("basis") or "").upper() in MEASURED_BASES
             for row in traced
             for estimate in row["estimates"]

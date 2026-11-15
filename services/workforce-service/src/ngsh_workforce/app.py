@@ -495,9 +495,7 @@ async def record_training_completion(request: Request, body: dict[str, Any]) -> 
     scenario_skills = [str(item) for item in scenario.get("skillIds") or []]
     skill_id = body.get("skillId") or (scenario_skills[0] if scenario_skills else None)
     if not isinstance(skill_id, str) or not skill_id:
-        raise ValidationError(
-            "'skillId' is required unless the scenario names the skill it exercises"
-        )
+        raise ValidationError("'skillId' is required unless the scenario names the skill it exercises")
 
     person_entity = _require_entity(request, "Person", person_id)
     _require(request, "Skill", skill_id)

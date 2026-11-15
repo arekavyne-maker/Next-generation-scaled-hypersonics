@@ -33,6 +33,11 @@ The thread service additionally exposes search over the projection
 (`ngsh_core.lakehouse`). Both are derived views; neither is a second source of
 truth.
 
+In front of these services, `gateway-service` (8080) provides the console's
+single address, the live platform status, the capability matrix and a
+transparent `/api/<service>/...` proxy. It is not a business service and owns no
+authoritative fact.
+
 Every service is independently deployable and independently licensable: it has
 its own `pyproject.toml`, its own container image, its own Helm values block
 and its own compose service. A programme can run Pillar B without Pillar F.
@@ -262,6 +267,7 @@ the programme has one thread, not a silo per pillar.
 | Generated models | `uv run python tools/codegen/generate.py --check` | No drift between contracts and Python |
 | Lint | `uv run ruff check libs services apps tests tools scripts` | Style and import hygiene |
 | Live demo | `make dev` then `make demo-programme` | The same traversal over HTTP against the running stack |
+| Complete scope | `make dev` then `make demo-full` | Every one of the 34 capabilities and 7 interfaces through the gateway |
 
 ## 14. What this is not
 
@@ -269,8 +275,9 @@ The delivered services are a reference implementation of the platform's rules,
 not accredited production software. The following remain open and are tracked
 in the risk register:
 
-* PSDD capabilities are not yet verified against their exit criteria (34 of
-  them remain unverified);
+* capabilities are runnable and tested, but programme acceptance against their
+  operational exit criteria still requires real programme data and institutions
+  (see [`08-complete-build.md`](08-complete-build.md) §7);
 * no PostgreSQL server has been exercised at runtime in this environment,
   though the dialect is implemented and its SQL is checked;
 * no Docker or Helm runtime is available locally; compose and chart rendering

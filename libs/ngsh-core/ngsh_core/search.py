@@ -126,11 +126,7 @@ def search(
     if not terms:
         return {"query": query, "terms": [], "results": [], "count": 0, "totalConsidered": 0}
 
-    considered = [
-        entity
-        for entity in entities
-        if entity_type is None or entity.get("type") == entity_type
-    ]
+    considered = [entity for entity in entities if entity_type is None or entity.get("type") == entity_type]
     ranked: list[tuple[int, dict[str, Any], list[str]]] = []
     for entity in considered:
         score, fields = score_entity(entity, terms)

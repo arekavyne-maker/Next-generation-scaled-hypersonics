@@ -21,6 +21,7 @@ dependencies = [
     "ngsh-industrial-service",
     "ngsh-analytics-service",
     "ngsh-integration-service",
+    "ngsh-gateway-service",
     "ngsh-edge-agent",
 ]
 
@@ -42,6 +43,7 @@ members = [
     "services/industrial-service",
     "services/analytics-service",
     "services/integration-service",
+    "services/gateway-service",
     "apps/edge-agent",
 ]
 
@@ -62,6 +64,7 @@ ngsh-engagement-service = { workspace = true }
 ngsh-industrial-service = { workspace = true }
 ngsh-analytics-service = { workspace = true }
 ngsh-integration-service = { workspace = true }
+ngsh-gateway-service = { workspace = true }
 ngsh-edge-agent = { workspace = true }
 
 [dependency-groups]
@@ -94,6 +97,7 @@ pythonpath = [
     "services/industrial-service/src",
     "services/analytics-service/src",
     "services/integration-service/src",
+    "services/gateway-service/src",
 ]
 addopts = "-q --strict-markers"
 asyncio_default_fixture_loop_scope = "function"

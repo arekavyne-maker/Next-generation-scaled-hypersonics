@@ -9,6 +9,8 @@
 
 import type {
   AuditEntry,
+  CapabilityMatrix,
+  CapabilityRow,
   CoverageResponse,
   EntityWithRelations,
   EventEnvelope,
@@ -17,11 +19,13 @@ import type {
   HealthStatus,
   IngestRequest,
   IngestResponse,
+  InterfaceRow,
   LedgerPage,
   LedgerVerification,
   NgsHEntity,
   OntologyRegistry,
   OntologyTypeDetail,
+  PlatformStatus,
   PolicyDecisionRequest,
   PolicyDecisionResponse,
   PolicyList,
@@ -32,7 +36,9 @@ import type {
   VerifyingResult,
 } from './types';
 import {
+  INTERFACE_ROWS,
   MOCK_ENTITIES,
+  MOCK_EPOCH_MS,
   MOCK_EVENTS,
   MOCK_GRAPH_STATS,
   MOCK_LEDGER,
@@ -40,6 +46,7 @@ import {
   MOCK_POLICIES,
   MOCK_REGISTRY,
   MOCK_RELATIONS,
+  PILLAR_CAPABILITY_ROWS,
   evaluateMockPolicy,
   mockEntityWithRelations,
 } from './mock-data';
@@ -101,6 +108,7 @@ const MOCK_HEALTH: Record<ServiceName, { status: HealthStatus['status']; latency
   audit: { status: 'ok', latencyMs: 3, detail: `head ${MOCK_LEDGER_HEAD.slice(0, 12)}` },
   thread: { status: 'ok', latencyMs: 11, detail: `${MOCK_GRAPH_STATS.totalEntities} entities projected` },
   ingest: { status: 'degraded', latencyMs: 214, detail: 'edge queue backlog 1,284 batches' },
+  gateway: { status: 'ok', latencyMs: 6, detail: '15 core services, 34 capabilities' },
 };
 
 export function mockHealth(service: ServiceName): HealthStatus {
@@ -420,5 +428,86 @@ export function mockIngest(request: IngestRequest): IngestResponse {
     recordsAccepted: accepted,
     recordsRejected: rejected,
     entityIds,
+  };
+}
+
+/* ------------------------------------------------------------------ */
+/* Gateway — platform status and capability matrix                      */
+/* ------------------------------------------------------------------ */
+
+const MOCK_PLATFORM_SERVICES = [
+  'ontology',
+  'fabric',
+  'policy',
+  'audit',
+  'thread',
+  'ingest',
+  'architecture',
+  'workforce',
+  'manufacturing',
+  'testlab',
+  'supply',
+  'engagement',
+  'industrial',
+  'analytics',
+  'integration',
+];
+
+const MOCK_PLATFORM_PORTS: Record<string, number> = {
+  ontology: 8081,
+  fabric: 8082,
+  policy: 8083,
+  audit: 8084,
+  thread: 8085,
+  ingest: 8086,
+  architecture: 8088,
+  workforce: 8089,
+  manufacturing: 8090,
+  testlab: 8091,
+  supply: 8092,
+  engagement: 8093,
+  industrial: 8094,
+  analytics: 8095,
+  integration: 8096,
+};
+
+export function mockPlatformStatus(): PlatformStatus {
+  return {
+    status: 'ok',
+    serviceCount: MOCK_PLATFORM_SERVICES.length,
+    healthyCount: MOCK_PLATFORM_SERVICES.length,
+    reachableCount: MOCK_PLATFORM_SERVICES.length,
+    checkedAt: new Date(MOCK_EPOCH_MS).toISOString(),
+    services: MOCK_PLATFORM_SERVICES.map((name) => ({
+      name,
+      url: `http://localhost:${MOCK_PLATFORM_PORTS[name]}`,
+      reachable: true,
+      statusCode: 200,
+      status: 'ok' as const,
+      detail: 'mock',
+    })),
+  };
+}
+
+export function mockPlatformCapabilities(): CapabilityMatrix {
+  const capabilities: CapabilityRow[] = PILLAR_CAPABILITY_ROWS.map((row) => ({
+    ...row,
+    status: row.id === 'E-3' ? 'ADAPTER' : 'IMPLEMENTED',
+  }));
+  const interfaces: InterfaceRow[] = INTERFACE_ROWS.map((row) => ({ ...row }));
+  return {
+    count: capabilities.length,
+    pillarCount: new Set(capabilities.map((row) => row.pillar)).size,
+    interfaceCount: interfaces.length,
+    capabilities,
+    interfaces,
+    services: Object.entries(
+      capabilities.reduce<Record<string, number>>((acc, row) => {
+        acc[row.service] = (acc[row.service] ?? 0) + 1;
+        return acc;
+      }, {}),
+    ).map(([name, capabilityCount]) => ({ name, capabilityCount })),
+    note:
+      'IMPLEMENTED means a runnable, tested path exists. ADAPTER means the platform provides a validated simulated counterpart; the real counterpart is supplied and accredited by the programme.',
   };
 }

@@ -25,6 +25,8 @@ arrives without a handling marking cannot be safely promoted later.
 
 from __future__ import annotations
 
+import base64
+import binascii
 import csv
 import hashlib
 import io
@@ -32,9 +34,10 @@ import json
 from datetime import UTC, datetime
 from typing import Any
 
-from fastapi import APIRouter, Body, FastAPI, Request
+from fastapi import APIRouter, Body, FastAPI, Query, Request
 from fastapi.responses import JSONResponse
 from ngsh_core.app import create_service
+from ngsh_core.blobstore import BlobStore
 from ngsh_core.config import Settings, load_settings
 from ngsh_core.envelope import Actor, Classification, EventEnvelope
 from ngsh_core.errors import ValidationError
@@ -356,6 +359,74 @@ async def get_batch(request: Request, batch_id: str) -> dict[str, Any]:
     return result
 
 
+@router.post("/lakehouse/objects", summary="Store a lakehouse object by content", status_code=201)
+async def store_object(request: Request, body: dict[str, Any] = Body(...)) -> JSONResponse:
+    """Store bytes under their SHA-256 and return the addressable record.
+
+    Content is supplied inline because the reference implementation has no
+    object-store SDK (ADR-0003). A deployment adapter streams the same bytes to
+    the accredited store; the ``ngsh-lake://<digest>`` URI and the verification
+    contract do not change.
+    """
+    content = body.get("content")
+    if not isinstance(content, str):
+        raise ValidationError("'content' must be a string")
+    encoding = str(body.get("encoding", "utf-8")).lower()
+    if encoding in {"utf-8", "text", "utf8"}:
+        raw = content.encode("utf-8")
+    elif encoding == "base64":
+        try:
+            raw = base64.b64decode(content, validate=True)
+        except (binascii.Error, ValueError) as exc:
+            raise ValidationError("'content' is not valid base64") from exc
+    else:
+        raise ValidationError("'encoding' must be 'utf-8' or 'base64'")
+    if not raw:
+        raise ValidationError("'content' must not be empty")
+
+    metadata = body.get("metadata") or {}
+    if not isinstance(metadata, dict):
+        raise ValidationError("'metadata' must be an object")
+    media_type = body.get("mediaType") or "application/octet-stream"
+    if not isinstance(media_type, str):
+        raise ValidationError("'mediaType' must be a string")
+    store: BlobStore = request.app.state.blobstore
+    record = store.put(raw, media_type=media_type, metadata=metadata)
+    return JSONResponse(status_code=201, content={"object": record})
+
+
+@router.get("/lakehouse/objects", summary="List lakehouse objects")
+async def list_objects(request: Request, limit: int = Query(100, ge=1, le=1000)) -> dict[str, Any]:
+    records = request.app.state.blobstore.list(limit=limit)
+    return {"objects": records, "count": len(records), "storage": "local-content-addressed"}
+
+
+@router.get("/lakehouse/objects/{digest}", summary="Metadata for one lakehouse object")
+async def object_metadata(request: Request, digest: str) -> dict[str, Any]:
+    return {"object": request.app.state.blobstore.metadata(digest)}
+
+
+@router.get("/lakehouse/objects/{digest}/content", summary="Fetch lakehouse object content")
+async def object_content(request: Request, digest: str, encoding: str = Query("base64")) -> dict[str, Any]:
+    content, record = request.app.state.blobstore.get(digest)
+    normalized = encoding.lower()
+    if normalized in {"utf-8", "text", "utf8"}:
+        try:
+            value = content.decode("utf-8")
+        except UnicodeDecodeError as exc:
+            raise ValidationError("the object is not UTF-8 text; request base64") from exc
+    elif normalized == "base64":
+        value = base64.b64encode(content).decode("ascii")
+    else:
+        raise ValidationError("'encoding' must be 'base64' or 'utf-8'")
+    return {"digest": digest, "encoding": normalized, "content": value, "object": record}
+
+
+@router.get("/lakehouse/objects/{digest}/verify", summary="Re-hash a lakehouse object")
+async def verify_object(request: Request, digest: str) -> dict[str, Any]:
+    return request.app.state.blobstore.verify(digest)
+
+
 def create_app(settings: Settings | None = None) -> FastAPI:
     resolved = settings or load_settings()
     executor = open_database(resolved.dsn)
@@ -376,6 +447,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     )
     app.state.executor = executor
     app.state.registry = registry
+    app.state.blobstore = BlobStore(resolved.lakehouse_path)
     return app
 
 

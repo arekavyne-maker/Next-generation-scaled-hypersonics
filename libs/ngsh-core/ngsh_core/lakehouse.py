@@ -110,13 +110,9 @@ def dataset_catalog(
                 ):
                     if snapshot.get(key):
                         entry[bucket].add(str(snapshot[key]))
-                missing = [
-                    key for key in REQUIRED_CONFIGURATION_KEYS if not snapshot.get(key)
-                ]
+                missing = [key for key in REQUIRED_CONFIGURATION_KEYS if not snapshot.get(key)]
                 if missing:
-                    entry["unconfiguredResults"].append(
-                        {"resultId": result_id, "missing": missing}
-                    )
+                    entry["unconfiguredResults"].append({"resultId": result_id, "missing": missing})
             else:
                 entry["unconfiguredResults"].append(
                     {"resultId": result_id, "missing": list(REQUIRED_CONFIGURATION_KEYS)}
@@ -147,7 +143,9 @@ def dataset_catalog(
     for uri, entry in sorted(entries.items()):
         source_ids = sorted({str(item) for item in entry["referencedBy"] if item})
         digest = _digest({"uri": uri, "sources": source_ids})
-        classification = max_level(*entry["classifications"]).label if entry["classifications"] else "UNCLASSIFIED"
+        classification = (
+            max_level(*entry["classifications"]).label if entry["classifications"] else "UNCLASSIFIED"
+        )
         catalogue.append(
             {
                 "datasetId": f"DS:{digest[:26].upper()}",
@@ -181,9 +179,7 @@ def dataset_catalog(
             "configuredCount": configured,
             "configurationCoverage": round(configured / total, 4) if total else 0.0,
             "unconfiguredCount": total - configured,
-            "campaignCount": len(
-                {campaign for entry in catalogue for campaign in entry["campaigns"]}
-            ),
+            "campaignCount": len({campaign for entry in catalogue for campaign in entry["campaigns"]}),
             "formats": sorted({entry["format"] for entry in catalogue}),
         },
         "complete": total > 0 and configured == total,
@@ -194,11 +190,7 @@ def dataset_lineage(uri: str, results: list[dict[str, Any]]) -> dict[str, Any]:
     """Every result, configuration and model behind one dataset URI."""
     if not isinstance(uri, str) or not uri:
         raise ValidationError("'uri' is required")
-    matched = [
-        result
-        for result in results
-        if uri in (_attributes(result).get("dataSetUris") or [])
-    ]
+    matched = [result for result in results if uri in (_attributes(result).get("dataSetUris") or [])]
     if not matched:
         raise ValidationError(f"no test result references dataset {uri!r}")
 
@@ -223,7 +215,6 @@ def dataset_lineage(uri: str, results: list[dict[str, Any]]) -> dict[str, Any]:
         "lineage": lineage,
         "resultCount": len(lineage),
         "complete": all(
-            isinstance(row["configurationSnapshot"], dict) and row["configurationSnapshot"]
-            for row in lineage
+            isinstance(row["configurationSnapshot"], dict) and row["configurationSnapshot"] for row in lineage
         ),
     }

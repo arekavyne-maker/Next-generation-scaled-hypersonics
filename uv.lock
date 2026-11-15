@@ -12,6 +12,7 @@ members = [
     "ngsh-edge-agent",
     "ngsh-engagement-service",
     "ngsh-fabric-service",
+    "ngsh-gateway-service",
     "ngsh-industrial-service",
     "ngsh-ingest-service",
     "ngsh-integration-service",
@@ -400,6 +401,7 @@ dependencies = [
     { name = "ngsh-edge-agent" },
     { name = "ngsh-engagement-service" },
     { name = "ngsh-fabric-service" },
+    { name = "ngsh-gateway-service" },
     { name = "ngsh-industrial-service" },
     { name = "ngsh-ingest-service" },
     { name = "ngsh-integration-service" },
@@ -432,6 +434,7 @@ requires-dist = [
     { name = "ngsh-edge-agent", editable = "apps/edge-agent" },
     { name = "ngsh-engagement-service", editable = "services/engagement-service" },
     { name = "ngsh-fabric-service", editable = "services/fabric-service" },
+    { name = "ngsh-gateway-service", editable = "services/gateway-service" },
     { name = "ngsh-industrial-service", editable = "services/industrial-service" },
     { name = "ngsh-ingest-service", editable = "services/ingest-service" },
     { name = "ngsh-integration-service", editable = "services/integration-service" },
@@ -550,6 +553,17 @@ requires-dist = [{ name = "ngsh-core", editable = "libs/ngsh-core" }]
 name = "ngsh-fabric-service"
 version = "0.1.0"
 source = { editable = "services/fabric-service" }
+dependencies = [
+    { name = "ngsh-core" },
+]
+
+[package.metadata]
+requires-dist = [{ name = "ngsh-core", editable = "libs/ngsh-core" }]
+
+[[package]]
+name = "ngsh-gateway-service"
+version = "0.1.0"
+source = { editable = "services/gateway-service" }
 dependencies = [
     { name = "ngsh-core" },
 ]

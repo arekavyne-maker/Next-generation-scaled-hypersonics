@@ -326,7 +326,14 @@ export interface IngestResponse {
 /* Health                                                               */
 /* ------------------------------------------------------------------ */
 
-export type ServiceName = 'ontology' | 'fabric' | 'policy' | 'audit' | 'thread' | 'ingest';
+export type ServiceName =
+  | 'ontology'
+  | 'fabric'
+  | 'policy'
+  | 'audit'
+  | 'thread'
+  | 'ingest'
+  | 'gateway';
 
 export const SERVICE_NAMES: readonly ServiceName[] = [
   'ontology',
@@ -344,6 +351,7 @@ export const SERVICE_LABELS: Record<ServiceName, string> = {
   audit: 'audit-service',
   thread: 'thread-service',
   ingest: 'ingest-service',
+  gateway: 'gateway-service',
 };
 
 export const SERVICE_PORTS: Record<ServiceName, number> = {
@@ -353,7 +361,68 @@ export const SERVICE_PORTS: Record<ServiceName, number> = {
   audit: 8084,
   thread: 8085,
   ingest: 8086,
+  gateway: 8080,
 };
+
+/* ------------------------------------------------------------------ */
+/* Gateway — platform status and capability matrix                      */
+/* ------------------------------------------------------------------ */
+
+export interface PlatformService {
+  name: string;
+  port: number;
+  url: string;
+  core: boolean;
+}
+
+export interface PlatformServiceStatus {
+  name: string;
+  url: string;
+  reachable: boolean;
+  statusCode: number;
+  status: 'ok' | 'down';
+  detail?: unknown;
+}
+
+export interface PlatformStatus {
+  status: 'ok' | 'degraded' | 'down';
+  serviceCount: number;
+  healthyCount: number;
+  reachableCount: number;
+  services: PlatformServiceStatus[];
+  checkedAt: string;
+}
+
+export interface CapabilityRow {
+  id: string;
+  pillar: string;
+  name: string;
+  service: string;
+  status: 'IMPLEMENTED' | 'ADAPTER';
+  endpoints: string[];
+  note?: string;
+}
+
+export interface InterfaceRow {
+  id: string;
+  name: string;
+  direction: string;
+  status: 'IMPLEMENTED' | 'ADAPTER' | 'INBOUND_ONLY';
+  counterpart: string;
+  protocol: string;
+  endpoint?: string;
+  note?: string;
+}
+
+export interface CapabilityMatrix {
+  count: number;
+  pillarCount: number;
+  interfaceCount: number;
+  capabilities: CapabilityRow[];
+  interfaces: InterfaceRow[];
+  services: Array<{ name: string; capabilityCount: number }>;
+  note: string;
+}
 
 export interface HealthStatus {
   service: ServiceName;

@@ -27,6 +27,7 @@ from ngsh_core.manufacturing import (
     simulate_rate,
 )
 from ngsh_core.ontology import OntologyLoader
+from ngsh_core.production_sim import simulate_production
 from ngsh_core.publish import actor_for, entity_document, publish
 from ngsh_core.store import open_database
 from ngsh_core.workforce import clearance_current, clearance_rank
@@ -118,9 +119,7 @@ async def record_run(request: Request, body: dict[str, Any] = Body(...)) -> JSON
 
     errors = request.app.state.registry.validate_entity(Entity.model_validate(document))
     if errors:
-        raise ValidationError(
-            f"ProcessRun {run_id} does not satisfy the ontology", detail=errors
-        )
+        raise ValidationError(f"ProcessRun {run_id} does not satisfy the ontology", detail=errors)
 
     event = EventEnvelope(
         eventType="process.run.completed",
@@ -190,6 +189,31 @@ async def simulate(request: Request, body: dict[str, Any] = Body(...)) -> dict[s
         efficiency=float(body.get("efficiency", 0.85)),
         setup_days=int(body.get("setupDays", 1)),
         unit_cost=body.get("unitCost"),
+    )
+
+
+@router.post("/production/simulate", summary="Run a discrete-event production simulation")
+async def production_simulation(request: Request, body: dict[str, Any] = Body(...)) -> dict[str, Any]:
+    """Simulate the line as it is described, not as it is hoped to be.
+
+    Stations are supplied explicitly so the same endpoint serves a what-if
+    study, a surge plan and an industrial-base assessment. The result is
+    reproducible from the request; ``seed`` changes the yield draws, nothing
+    else.
+    """
+    stations = body.get("stations")
+    if not isinstance(stations, list) or not stations:
+        raise ValidationError("'stations' must be a non-empty list")
+    demand_units = body.get("demandUnits")
+    if not isinstance(demand_units, int) or demand_units <= 0:
+        raise ValidationError("'demandUnits' must be a positive integer")
+    return simulate_production(
+        stations,
+        demand_units=demand_units,
+        shifts_per_day=int(body.get("shiftsPerDay", 2)),
+        shift_hours=float(body.get("shiftHours", 8.0)),
+        horizon_days=int(body.get("horizonDays", 30)),
+        seed=int(body.get("seed", 2026)),
     )
 
 

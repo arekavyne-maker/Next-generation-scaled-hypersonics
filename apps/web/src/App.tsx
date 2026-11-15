@@ -6,6 +6,7 @@ import { ThreadPage } from './pages/ThreadPage';
 import { RequirementsPage } from './pages/RequirementsPage';
 import { AuditPage } from './pages/AuditPage';
 import { AccessPage } from './pages/AccessPage';
+import { PlatformPage } from './pages/PlatformPage';
 
 export function App(): JSX.Element {
   return (
@@ -17,6 +18,7 @@ export function App(): JSX.Element {
         <Route path="requirements" element={<RequirementsPage />} />
         <Route path="audit" element={<AuditPage />} />
         <Route path="access" element={<AccessPage />} />
+        <Route path="platform" element={<PlatformPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>
     </Routes>

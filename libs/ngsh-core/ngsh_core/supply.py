@@ -82,7 +82,11 @@ def surge_plan(
 
     lead_times = [int(supplier.get("leadTimeDays") or 0) for supplier in suppliers]
     critical_delay = max(lead_times) if lead_times else 0
-    bottleneck = max(suppliers, key=lambda s: (int(s.get("leadTimeDays") or 0), -float(s.get("riskScore") or 0))) if suppliers else None
+    bottleneck = (
+        max(suppliers, key=lambda s: (int(s.get("leadTimeDays") or 0), -float(s.get("riskScore") or 0)))
+        if suppliers
+        else None
+    )
 
     usable_days = max(horizon_days - critical_delay, 0)
     achievable = daily_capacity * usable_days * risk_factor

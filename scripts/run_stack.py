@@ -3,7 +3,7 @@
 
 Starts every service in a background thread and blocks until interrupted.
 This is the local development topology: one process, one platform database,
-all fifteen services.
+all sixteen services.
 
 For a multi-process deployment, run each service separately with the
 ``make dev-<name>`` targets and point the service-discovery environment
@@ -40,6 +40,7 @@ SERVICES: list[tuple[str, str, int]] = [
     ("industrial", "ngsh_industrial.app:create_app", 8094),
     ("analytics", "ngsh_analytics.app:create_app", 8095),
     ("integration", "ngsh_integration.app:create_app", 8096),
+    ("gateway", "ngsh_gateway.app:create_app", 8080),
 ]
 
 

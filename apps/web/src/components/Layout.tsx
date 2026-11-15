@@ -15,6 +15,7 @@ interface RouteDef {
 
 export const ROUTES: RouteDef[] = [
   { path: '/', label: 'Overview', icon: 'overview', group: 'Platform', description: 'Service health, ontology coverage and throughput' },
+  { path: '/platform', label: 'Platform', icon: 'database', group: 'Platform', description: 'Every service, capability and external interface' },
   { path: '/events', label: 'Event Stream', icon: 'stream', group: 'Fabric', description: 'The append-only event log' },
   { path: '/thread', label: 'Digital Thread', icon: 'thread', group: 'Fabric', description: 'Trace the graph across the ontology' },
   { path: '/requirements', label: 'Requirements', icon: 'requirements', group: 'Assurance', description: 'Verification coverage and gaps' },

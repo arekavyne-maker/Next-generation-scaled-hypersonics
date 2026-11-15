@@ -17,7 +17,7 @@ export NGSH_DSN ?= sqlite:///./$(DATA_DIR)/ngsh.db
 export NGSH_TENANT ?= ngsh
 export NGSH_DEPLOYMENT_PROFILE ?= local
 
-SERVICE_PORTS := ontology:8081 fabric:8082 policy:8083 audit:8084 thread:8085 ingest:8086 architecture:8088 workforce:8089 manufacturing:8090 testlab:8091 supply:8092 engagement:8093 industrial:8094 analytics:8095 integration:8096
+SERVICE_PORTS := ontology:8081 fabric:8082 policy:8083 audit:8084 thread:8085 ingest:8086 gateway:8080 architecture:8088 workforce:8089 manufacturing:8090 testlab:8091 supply:8092 engagement:8093 industrial:8094 analytics:8095 integration:8096
 
 .PHONY: help
 help: ## Show the available targets
@@ -64,7 +64,7 @@ codegen-check: ## Fail if the generated models are out of date
 	$(PY) tools/codegen/generate.py --check
 
 .PHONY: dev
-dev: ## Run the foundation and the Pillar A first slice locally
+dev: ## Run the complete sixteen-service platform locally
 	@$(PY) scripts/run_stack.py
 
 .PHONY: dev-ontology
@@ -127,9 +127,17 @@ dev-analytics: ## Run the analytics service (programme KPIs)
 dev-integration: ## Run the integration service (interface register)
 	NGSH_SERVICE_NAME=integration NGSH_PORT=8096 $(PY) -m ngsh_integration.app
 
+.PHONY: dev-gateway
+dev-gateway: ## Run the gateway (single entry point, 8080)
+	NGSH_SERVICE_NAME=gateway NGSH_PORT=8080 $(PY) -m ngsh_gateway.app
+
 .PHONY: demo
 demo: ## Exercise the full vertical slice against the running stack
 	$(PY) scripts/demo.py
+
+.PHONY: demo-full
+demo-full: ## Exercise every capability and interface against the running stack
+	$(PY) scripts/demo_full.py
 
 .PHONY: demo-programme
 demo-programme: ## Walk all six pillars in one thread against the running stack

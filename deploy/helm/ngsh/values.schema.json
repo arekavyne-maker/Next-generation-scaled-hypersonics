@@ -134,7 +134,7 @@
           "type": "array",
           "items": {
             "type": "string",
-            "enum": ["ontology", "fabric", "policy", "audit", "thread", "ingest", "architecture", "workforce", "manufacturing", "testlab", "supply", "engagement", "industrial", "analytics", "integration", "web"]
+            "enum": ["ontology", "fabric", "policy", "audit", "thread", "ingest", "architecture", "workforce", "manufacturing", "testlab", "supply", "engagement", "industrial", "analytics", "integration", "gateway", "web"]
           }
         },
         "replicaCount": { "type": "integer", "minimum": 0 },
@@ -322,6 +322,7 @@
             "industrial": { "$ref": "#/definitions/profileServiceOverlay" },
             "analytics": { "$ref": "#/definitions/profileServiceOverlay" },
             "integration": { "$ref": "#/definitions/profileServiceOverlay" },
+            "gateway": { "$ref": "#/definitions/profileServiceOverlay" },
             "web": { "$ref": "#/definitions/profileServiceOverlay" }
           }
         }
@@ -465,7 +466,7 @@
                     "pathType": { "type": "string", "enum": ["Exact", "Prefix", "ImplementationSpecific"] },
                     "service": {
                       "type": "string",
-                      "enum": ["ontology", "fabric", "policy", "audit", "thread", "ingest", "architecture", "workforce", "manufacturing", "testlab", "supply", "engagement", "industrial", "analytics", "integration", "web"]
+                      "enum": ["ontology", "fabric", "policy", "audit", "thread", "ingest", "architecture", "workforce", "manufacturing", "testlab", "supply", "engagement", "industrial", "analytics", "integration", "gateway", "web"]
                     }
                   }
                 }
@@ -579,7 +580,7 @@
         "image": { "$ref": "#/definitions/image" },
         "service": {
           "type": "string",
-          "enum": ["ontology", "fabric", "policy", "audit", "thread", "ingest", "architecture", "workforce", "manufacturing", "testlab", "supply", "engagement", "industrial", "analytics", "integration", "web"]
+          "enum": ["ontology", "fabric", "policy", "audit", "thread", "ingest", "architecture", "workforce", "manufacturing", "testlab", "supply", "engagement", "industrial", "analytics", "integration", "gateway", "web"]
         },
         "path": { "type": "string", "pattern": "^/" },
         "timeoutSeconds": { "type": "integer", "minimum": 1 }
@@ -588,7 +589,7 @@
     "services": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["ontology", "fabric", "policy", "audit", "thread", "ingest", "architecture", "workforce", "manufacturing", "testlab", "supply", "engagement", "industrial", "analytics", "integration", "web"],
+      "required": ["ontology", "fabric", "policy", "audit", "thread", "ingest", "architecture", "workforce", "manufacturing", "testlab", "supply", "engagement", "industrial", "analytics", "integration", "gateway", "web"],
       "properties": {
         "ontology": { "$ref": "#/definitions/service" },
         "fabric": { "$ref": "#/definitions/service" },
@@ -605,6 +606,7 @@
         "industrial": { "$ref": "#/definitions/service" },
         "analytics": { "$ref": "#/definitions/service" },
         "integration": { "$ref": "#/definitions/service" },
+        "gateway": { "$ref": "#/definitions/service" },
         "web": { "$ref": "#/definitions/service" }
       }
     }

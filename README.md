@@ -8,15 +8,18 @@ kill-chain engineering, threat digital twins, virtual test enterprise) on one
 shared data fabric.
 
 > This repository contains the programme's **software delivery plan** and the
-> **Increment 0 foundation** — the shared substrate that every pillar stands
-> on. It is deliberately not a pillar feature set.
+> **complete reference build**: the shared foundation, all eight pillars and
+> the external interface boundary on one platform. External systems are
+> connected through validated adapters; the real counterparts, classified data
+> and accreditation remain programme-supplied.
 
 | Document | Purpose |
 |---|---|
 | [`NGSH_Preliminary_Software_Design_Document.md`](NGSH_Preliminary_Software_Design_Document.md) | The authoritative design document (PSDD v0.1) |
 | [`NGSH_Development_Plan.md`](NGSH_Development_Plan.md) | The delivery plan: increments, work packages, staffing, risk, measurement |
+| [`docs/architecture/08-complete-build.md`](docs/architecture/08-complete-build.md) | The complete build: 34 capabilities, 7 interfaces and their runnable paths |
 | [`docs/adr/`](docs/adr/) | Architecture decision records |
-| [`docs/architecture/`](docs/architecture/) | System, ontology, service, security and deployment architecture |
+| [`docs/architecture/`](docs/architecture/) | System, ontology, service, security, deployment and complete-build architecture |
 | [`docs/roadmap/`](docs/roadmap/) | Increment detail and the full work breakdown |
 | [`contracts/`](contracts/) | The contract layer — the source of truth for every shape in the platform |
 
@@ -84,10 +87,11 @@ Requires [uv](https://docs.astral.sh/uv/) and Python 3.12+. No Docker needed.
 
 ```bash
 make setup          # install dependencies
-make verify         # lint + contract validation + full test suite
-make dev            # run the fifteen-service platform
+make verify         # lint + contract validation + codegen check + full test suite
+make dev            # run the sixteen-service platform
 make demo           # in another terminal: walk the foundation end to end
-make demo-programme # in another terminal: walk all six pillars in one thread
+make demo-programme # in another terminal: walk all eight pillars in one thread
+make demo-full      # in another terminal: walk 34 capabilities and 7 interfaces
 make demo-edge      # in another terminal: walk the edge annex flow
 ```
 
@@ -100,6 +104,7 @@ evidence, take a policy decision, and verify the audit chain.
 
 | Service | Port | Responsibility |
 |---|---|---|
+| gateway | 8080 | The single entry point: platform status, capability matrix and transparent service proxy |
 | ontology | 8081 | The shared ontology: types, relations, invariants, validation |
 | fabric | 8082 | The append-only event log — the system of record |
 | policy | 8083 | The Policy Decision Point for attribute-based access control |
@@ -211,10 +216,11 @@ packages, a scale-agnostic pod model, and a 26-risk register with leading
 indicators and named owners — is in
 [`NGSH_Development_Plan.md`](NGSH_Development_Plan.md).
 
-**Increment 0 is this repository.** It has no pillar capability in it, and
-that is the point: the ontology, the fabric, the policy engine, the ledger
-and the thread are the parts of NGSH that cannot be retrofitted once eight
-pillars depend on them.
+**This repository is the complete reference build.** The foundation, all eight
+pillars and the external interface boundary are implemented against one
+contract layer and one event-sourced thread. What remains is programme-supplied:
+real counterpart systems, classified data, and authority to operate. See
+[`docs/architecture/08-complete-build.md`](docs/architecture/08-complete-build.md).
 
 ---
 

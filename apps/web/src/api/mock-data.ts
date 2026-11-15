@@ -13,10 +13,12 @@
 import type {
   Actor,
   AuditEntry,
+  CapabilityRow,
   ClassificationLevel,
   EntityWithRelations,
   EventEnvelope,
   GraphStats,
+  InterfaceRow,
   NgsHEntity,
   OntologyRegistry,
   PolicyDecisionResponse,
@@ -1764,3 +1766,62 @@ export function evaluateMockPolicy(
     reason: `Clearance ${subject.clearance} satisfies the ${resource.classification} floor and the subject holds a program tag.`,
   };
 }
+
+/* ------------------------------------------------------------------ */
+/* Gateway mock: the PSDD capability and interface matrix               */
+/* ------------------------------------------------------------------ */
+
+export const PILLAR_CAPABILITY_ROWS: CapabilityRow[] = [
+  { id: "A-1", pillar: "A", name: "Digital twin backbone", service: "architecture", status: "IMPLEMENTED", endpoints: [] },
+  { id: "A-2", pillar: "A", name: "Modularity engine", service: "architecture", status: "IMPLEMENTED", endpoints: [] },
+  { id: "A-3", pillar: "A", name: "Requirements-to-test traceability", service: "architecture", status: "IMPLEMENTED", endpoints: [] },
+  { id: "A-4", pillar: "A", name: "Technology insertion planner", service: "architecture", status: "IMPLEMENTED", endpoints: [] },
+  { id: "A-5", pillar: "A", name: "Digital engineering SaaS", service: "architecture", status: "IMPLEMENTED", endpoints: [] },
+  { id: "B-1", pillar: "B", name: "Defense MES", service: "manufacturing", status: "IMPLEMENTED", endpoints: [] },
+  { id: "B-2", pillar: "B", name: "CMC process characterisation", service: "manufacturing", status: "IMPLEMENTED", endpoints: [] },
+  { id: "B-3", pillar: "B", name: "Test capability management", service: "testlab", status: "IMPLEMENTED", endpoints: [] },
+  { id: "B-4", pillar: "B", name: "Rate and cost simulation", service: "manufacturing", status: "IMPLEMENTED", endpoints: [] },
+  { id: "C-1", pillar: "C", name: "Unified test data lake", service: "ingest", status: "IMPLEMENTED", endpoints: [] },
+  { id: "C-2", pillar: "C", name: "Automated reduction and anomaly detection", service: "testlab", status: "IMPLEMENTED", endpoints: [] },
+  { id: "C-3", pillar: "C", name: "Twin validation loop", service: "testlab", status: "IMPLEMENTED", endpoints: [] },
+  { id: "C-4", pillar: "C", name: "Campaign management", service: "testlab", status: "IMPLEMENTED", endpoints: [] },
+  { id: "D-1", pillar: "D", name: "Multi-tier visibility", service: "supply", status: "IMPLEMENTED", endpoints: [] },
+  { id: "D-2", pillar: "D", name: "Foreign dependency mapping", service: "supply", status: "IMPLEMENTED", endpoints: [] },
+  { id: "D-3", pillar: "D", name: "Surge readiness twin", service: "supply", status: "IMPLEMENTED", endpoints: [] },
+  { id: "E-1", pillar: "E", name: "Digital-twin training", service: "workforce", status: "IMPLEMENTED", endpoints: [] },
+  { id: "E-2", pillar: "E", name: "Replicable curriculum engine", service: "workforce", status: "IMPLEMENTED", endpoints: [] },
+  { id: "E-3", pillar: "E", name: "Skills credentialing", service: "workforce", status: "IMPLEMENTED", endpoints: [] },
+  { id: "E-4", pillar: "E", name: "Workforce demand model", service: "workforce", status: "IMPLEMENTED", endpoints: [] },
+  { id: "E-5", pillar: "E", name: "Industry-academia sandbox", service: "workforce", status: "IMPLEMENTED", endpoints: [] },
+  { id: "F-1", pillar: "F", name: "Threat digital twins", service: "engagement", status: "IMPLEMENTED", endpoints: [] },
+  { id: "F-2", pillar: "F", name: "Kill-chain simulator", service: "engagement", status: "IMPLEMENTED", endpoints: [] },
+  { id: "F-3", pillar: "F", name: "Fire-control data quality scoring", service: "engagement", status: "IMPLEMENTED", endpoints: [] },
+  { id: "F-4", pillar: "F", name: "Interim architecture workbench", service: "engagement", status: "IMPLEMENTED", endpoints: [] },
+  { id: "F-5", pillar: "F", name: "Golden Dome readiness", service: "engagement", status: "IMPLEMENTED", endpoints: [] },
+  { id: "F-6", pillar: "F", name: "Red/blue co-simulation", service: "engagement", status: "IMPLEMENTED", endpoints: [] },
+  { id: "G-1", pillar: "G", name: "Virtual test range", service: "thread", status: "IMPLEMENTED", endpoints: [] },
+  { id: "G-2", pillar: "G", name: "Campaign digital twin", service: "testlab", status: "IMPLEMENTED", endpoints: [] },
+  { id: "G-3", pillar: "G", name: "Automated model validation", service: "testlab", status: "IMPLEMENTED", endpoints: [] },
+  { id: "G-4", pillar: "G", name: "Fidelity registry", service: "testlab", status: "IMPLEMENTED", endpoints: [] },
+  { id: "H-1", pillar: "H", name: "Surge readiness command", service: "industrial", status: "IMPLEMENTED", endpoints: [] },
+  { id: "H-2", pillar: "H", name: "Reconstitution planning", service: "industrial", status: "IMPLEMENTED", endpoints: [] },
+  { id: "H-3", pillar: "H", name: "Affordability engineering", service: "industrial", status: "IMPLEMENTED", endpoints: [] },
+];
+
+export const INTERFACE_ROWS: InterfaceRow[] = [
+  { id: 'IF-1', name: 'Prime PLM/MES APIs', direction: 'BI-DIR', status: 'ADAPTER', counterpart: 'Prime contractor PLM/MES', protocol: 'REST + STEP AP242 / OPC-UA' },
+  { id: 'IF-2', name: 'MDA/Aegis systems', direction: 'BI-DIR', status: 'ADAPTER', counterpart: 'MDA / Aegis', protocol: 'Link-16 / MTConnect-style message bus' },
+  {
+    id: 'IF-3',
+    name: 'SDA PWSA / HBTSS data feeds',
+    direction: 'IN',
+    status: 'INBOUND_ONLY',
+    counterpart: 'SDA / PWSA',
+    protocol: 'SDA track message',
+    note: 'v1 is inbound-only; no outbound path to SDA/PWSA is implemented.',
+  },
+  { id: 'IF-4', name: 'Range instrumentation', direction: 'BI-DIR', status: 'ADAPTER', counterpart: 'National range operators', protocol: 'REST + TDMS/HDF5' },
+  { id: 'IF-5', name: 'University LMS / AR-VR clients', direction: 'OUT', status: 'ADAPTER', counterpart: 'Academic partners', protocol: 'LTI 1.3 + glTF/USDZ' },
+  { id: 'IF-6', name: 'Government identity (PIV/ICAM)', direction: 'IN', status: 'ADAPTER', counterpart: 'DoD ICAM', protocol: 'SAML 2.0 / OIDC + PIV' },
+  { id: 'IF-7', name: 'Analytics/BI', direction: 'OUT', status: 'ADAPTER', counterpart: 'Programme office / BI consumers', protocol: 'REST + OData' },
+];

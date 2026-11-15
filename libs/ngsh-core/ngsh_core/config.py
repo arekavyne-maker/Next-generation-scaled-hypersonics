@@ -74,6 +74,11 @@ class Settings:
     )
     db_echo: bool = field(default_factory=lambda: _env_bool("NGSH_DB_ECHO", False))
 
+    #: Root for local file-backed content. The lakehouse stores its
+    #: content-addressed objects here; an accredited deployment points this at
+    #: the enclave object-store mount instead.
+    data_dir: str = field(default_factory=lambda: _env("NGSH_DATA_DIR", "data"))
+
     # Deployment profile, one of: local, il5, il6, edge.
     deployment_profile: str = field(default_factory=lambda: _env("NGSH_DEPLOYMENT_PROFILE", "local"))
     deployment_zone: str = field(default_factory=lambda: _env("NGSH_DEPLOYMENT_ZONE", "central"))
@@ -134,6 +139,17 @@ class Settings:
                 return None
             return Path(raw).expanduser()
         return None
+
+    @property
+    def data_path(self) -> Path:
+        """The resolved data directory, created on first use."""
+        path = Path(self.data_dir).expanduser()
+        path.mkdir(parents=True, exist_ok=True)
+        return path
+
+    @property
+    def lakehouse_path(self) -> Path:
+        return self.data_path / "lakehouse"
 
 
 def load_settings() -> Settings:

@@ -8,10 +8,12 @@ loop that turns a result into a model fidelity change with a causation chain.
 
 from __future__ import annotations
 
+import json
 from typing import Any
 
 from fastapi import APIRouter, Body, FastAPI, Query, Request
 from fastapi.responses import JSONResponse
+from ngsh_core.anomaly import detect_anomalies, scan_measurements
 from ngsh_core.app import create_service
 from ngsh_core.config import Settings, load_settings
 from ngsh_core.envelope import EventEnvelope
@@ -28,6 +30,7 @@ from ngsh_core.publish import (
     relation_document,
     relation_event,
 )
+from ngsh_core.regeneration import regenerate_model, residual_report
 from ngsh_core.store import open_database
 from ngsh_core.testlab import (
     apply_drift,
@@ -248,7 +251,10 @@ async def plan_campaign(request: Request, body: dict[str, Any] = Body(...)) -> J
         events.append(entity_event(slot_document, actor, registry=request.app.state.registry))
 
     await publish(request, *events)
-    return JSONResponse(status_code=201, content={"campaign": document, "slot": events[-1].payload.get("entity") if slot else None})
+    return JSONResponse(
+        status_code=201,
+        content={"campaign": document, "slot": events[-1].payload.get("entity") if slot else None},
+    )
 
 
 @router.get("/campaigns/{campaign_id}/curation", summary="Curate a campaign into a reusable dataset")
@@ -503,6 +509,181 @@ async def drift(request: Request, model_id: str, body: dict[str, Any] = Body(...
         report["recorded"] = False
 
     return report
+
+
+@router.post("/anomalies/detect", summary="Detect limits breaches and statistical outliers")
+async def anomalies(request: Request, body: dict[str, Any] = Body(...)) -> dict[str, Any]:
+    """Surface what deserves review, without changing any disposition.
+
+    Two modes are accepted: a numeric series (``series``) for a variation scan,
+    or named measurements with engineering ``limits`` and optional ``history``.
+    A flag is evidence for a reviewer, never a decision.
+    """
+    if "series" in body:
+        series = body.get("series")
+        if not isinstance(series, list):
+            raise ValidationError("'series' must be a list")
+        report = detect_anomalies(
+            series,
+            threshold=float(body.get("threshold", 3.0)),
+            min_samples=int(body.get("minSamples", 3)),
+            method=str(body.get("method", "zscore")),
+        )
+        return {"mode": "series", **report}
+
+    measurements = body.get("measurements")
+    if not isinstance(measurements, list) or not measurements:
+        raise ValidationError("provide 'series' or a non-empty 'measurements' list")
+    limits = body.get("limits") or {}
+    history = body.get("history") or {}
+    if not isinstance(limits, dict) or not isinstance(history, dict):
+        raise ValidationError("'limits' and 'history' must be objects")
+    report = scan_measurements(
+        measurements,
+        limits=limits,
+        history=history,
+        threshold=float(body.get("threshold", 3.0)),
+        min_samples=int(body.get("minSamples", 3)),
+    )
+    return {"mode": "measurements", **report}
+
+
+@router.post("/models/{model_id}/residuals", summary="Measure model disagreement with evidence")
+async def model_residuals(
+    request: Request, model_id: str, body: dict[str, Any] = Body(...)
+) -> dict[str, Any]:
+    entity = _require(request, "Model", model_id)
+    evidence = _evidence(request, body)
+    return residual_report({**_attrs(entity), "id": model_id}, evidence)
+
+
+@router.post("/models/{model_id}/regenerate", summary="Regenerate a model from evidence", status_code=201)
+async def regenerate(request: Request, model_id: str, body: dict[str, Any] = Body(...)) -> JSONResponse:
+    """Create a corrected model version, leaving the old version intact.
+
+    The scale/offset correction is fitted to the supplied evidence and recorded
+    on the new version. The new model is **not** approved for use: C-004 needs a
+    person to release it, and that act is a separate event. The link back to the
+    source model is a ``derivedFrom`` relation, so the thread shows both.
+    """
+    entity = _require(request, "Model", model_id)
+    evidence = _evidence(request, body)
+    reason = body.get("reason")
+    if reason is not None and not isinstance(reason, str):
+        raise ValidationError("'reason' must be a string")
+    new_model_id = body.get("modelId") or f"MDL:{new_ulid()}"
+    if not isinstance(new_model_id, str) or not new_model_id.startswith("MDL:"):
+        raise ValidationError("a regenerated model id must start with 'MDL:'")
+
+    report = regenerate_model(
+        {**_attrs(entity), "id": model_id},
+        evidence=evidence,
+        reason=reason,
+        new_model_id=new_model_id,
+    )
+
+    settings: Settings = request.app.state.settings
+    actor = actor_for(settings, request)
+    attributes = {key: value for key, value in report["attributes"].items() if value is not None}
+    attributes["validationHistory"] = [
+        {
+            "event": "REGENERATED",
+            "parentModelId": model_id,
+            "reason": reason,
+            "digest": report["digest"],
+            "generatedAt": report["generatedAt"],
+            "approvedBy": None,
+        }
+    ]
+    document = entity_document(
+        "Model",
+        new_model_id,
+        attributes,
+        tenant=settings.tenant,
+        program=settings.program,
+        created_by=actor.subjectId,
+        provenance={"source": "testlab-service", "method": "model-regeneration"},
+    )
+    relation = relation_document(
+        "derivedFrom",
+        ("Model", new_model_id),
+        ("Model", model_id),
+        tenant=settings.tenant,
+        asserted_by=actor.subjectId,
+    )
+    await publish(
+        request,
+        entity_event(
+            document,
+            actor,
+            event_type="entity.created",
+            sequence=1,
+            registry=request.app.state.registry,
+        ),
+        relation_event(relation, actor, registry=request.app.state.registry),
+    )
+    return JSONResponse(
+        status_code=201,
+        content={
+            **{key: value for key, value in report.items() if key != "attributes"},
+            "entityDocument": document,
+            "requiresApproval": True,
+        },
+    )
+
+
+def _evidence(request: Request, body: dict[str, Any]) -> list[dict[str, Any]]:
+    """Gather evidence pairs from the request or from recorded test results."""
+    direct = body.get("evidence")
+    if direct is not None:
+        if not isinstance(direct, list) or not direct:
+            raise ValidationError("'evidence' must be a non-empty list")
+        return direct
+
+    result_ids = body.get("testResultIds")
+    if not isinstance(result_ids, list) or not result_ids:
+        raise ValidationError("provide 'evidence' pairs or a non-empty 'testResultIds' list")
+
+    evidence: list[dict[str, Any]] = []
+    for result_id in result_ids:
+        if not isinstance(result_id, str):
+            raise ValidationError("'testResultIds' entries must be strings")
+        result = _require(request, "TestResult", result_id)
+        attributes = _attrs(result)
+        annotations = result.get("annotations") or {}
+        recorded = annotations.get("predictionEvidence") if isinstance(annotations, dict) else None
+        if isinstance(recorded, str):
+            try:
+                recorded = json.loads(recorded)
+            except json.JSONDecodeError as exc:
+                raise ValidationError(f"test result {result_id!r} has malformed predictionEvidence") from exc
+        if isinstance(recorded, list):
+            for row in recorded:
+                if isinstance(row, dict):
+                    evidence.append({**row, "evidenceId": row.get("evidenceId") or result_id})
+        for measurement in attributes.get("measurements") or []:
+            if not isinstance(measurement, dict):
+                continue
+            predicted = measurement.get(
+                "predicted", measurement.get("expected", measurement.get("modelValue"))
+            )
+            observed = measurement.get("value")
+            if predicted is None or observed is None:
+                continue
+            evidence.append(
+                {
+                    "name": measurement.get("name"),
+                    "predicted": predicted,
+                    "observed": observed,
+                    "unit": measurement.get("unit"),
+                    "evidenceId": result_id,
+                }
+            )
+    if not evidence:
+        raise ValidationError(
+            "the supplied test results carry no measurement with both a predicted and an observed value"
+        )
+    return evidence
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:

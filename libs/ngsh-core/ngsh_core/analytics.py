@@ -383,9 +383,7 @@ def programme_kpis(
             "computedCount": len(computed),
             "notComputedCount": len(kpis) - len(computed),
             "meetingTargetCount": sum(1 for kpi in kpis if kpi["status"] == "MEETS"),
-            "belowTargetCount": sum(
-                1 for kpi in kpis if kpi["status"] in {"BELOW", "ABOVE"}
-            ),
+            "belowTargetCount": sum(1 for kpi in kpis if kpi["status"] in {"BELOW", "ABOVE"}),
         },
         "method": "computed-from-thread",
     }

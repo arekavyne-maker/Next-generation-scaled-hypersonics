@@ -121,7 +121,12 @@ def test_credential_lifecycle_and_authorisation(workforce, operator):
     client = workforce.client
     skill = client.post(
         "/v1/skills",
-        json={"name": "CMC layup", "code": "CMC-1", "category": "MANUFACTURING", "clearanceRequired": "SECRET"},
+        json={
+            "name": "CMC layup",
+            "code": "CMC-1",
+            "category": "MANUFACTURING",
+            "clearanceRequired": "SECRET",
+        },
     )
     assert skill.status_code == 201
     skill_id = skill.json()["skill"]["id"]
@@ -145,9 +150,7 @@ def test_credential_lifecycle_and_authorisation(workforce, operator):
     assert credential.status_code == 201
     credential_id = credential.json()["credential"]["id"]
 
-    allowed = client.get(
-        "/v1/work-authorisation", params={"personId": person_id, "skillId": skill_id}
-    ).json()
+    allowed = client.get("/v1/work-authorisation", params={"personId": person_id, "skillId": skill_id}).json()
     assert allowed["allowed"] is True
     assert allowed["credentialState"] == "ACTIVE"
 
@@ -155,9 +158,7 @@ def test_credential_lifecycle_and_authorisation(workforce, operator):
     assert suspended.status_code == 200
     assert suspended.json()["status"] == "SUSPENDED"
 
-    denied = client.get(
-        "/v1/work-authorisation", params={"personId": person_id, "skillId": skill_id}
-    ).json()
+    denied = client.get("/v1/work-authorisation", params={"personId": person_id, "skillId": skill_id}).json()
     assert denied["allowed"] is False
     assert denied["credentialState"] == "SUSPENDED"
 
@@ -354,9 +355,7 @@ def test_twin_validation_updates_the_model_and_asserts_the_evidence_edge(testlab
     app, client = testlab
     result_id = client.post("/v1/test-results", json=_admissible_result()).json()["testResult"]["id"]
 
-    validation = client.post(
-        "/v1/twin-validation", json={"testResultId": result_id, "modelId": "MDL:1"}
-    )
+    validation = client.post("/v1/twin-validation", json={"testResultId": result_id, "modelId": "MDL:1"})
     assert validation.status_code == 200
     body = validation.json()
     assert body["validatedByTestResultId"] == result_id
@@ -378,11 +377,23 @@ def test_result_publishes_verifies_after_the_result_itself(settings, operator):
     from ngsh_testlab.app import create_app
 
     app = create_app(settings)
-    _seed(app, operator, [_doc("Requirement", "REQ:1", {"statement": "Survive the flight envelope", "verificationMethod": "TEST", "status": "BASELINED"})])
+    _seed(
+        app,
+        operator,
+        [
+            _doc(
+                "Requirement",
+                "REQ:1",
+                {
+                    "statement": "Survive the flight envelope",
+                    "verificationMethod": "TEST",
+                    "status": "BASELINED",
+                },
+            )
+        ],
+    )
     with TestClient(app) as client:
-        response = client.post(
-            "/v1/test-results", json=_admissible_result(requirementIds=["REQ:1"])
-        )
+        response = client.post("/v1/test-results", json=_admissible_result(requirementIds=["REQ:1"]))
         assert response.status_code == 201
     edges = app.state.projector.relations(relation_type="verifies", limit=10)
     assert edges and edges[0]["from"]["id"].startswith("TR:")

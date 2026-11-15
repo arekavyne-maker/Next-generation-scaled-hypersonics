@@ -21,8 +21,12 @@ from __future__ import annotations
 
 import base64
 import binascii
+import hashlib
+import hmac
 import json
+import os
 from dataclasses import dataclass
+from datetime import UTC, datetime, timedelta
 from typing import Any, Protocol
 
 from .envelope import Actor
@@ -131,16 +135,135 @@ class PivIdentityProvider:
         raise AuthenticationError("PIV/ICAM assertion validation is not implemented in this build")
 
 
+def _local_key() -> bytes:
+    """The development assertion key.
+
+    This key exists only so a local deployment can exercise the IF-6 path end
+    to end. It is refused outside ``local`` and ``edge`` by
+    :func:`build_identity_provider`; it is not a production secret.
+    """
+    return os.environ.get("NGSH_LOCAL_IDENTITY_KEY", "ngsh-local-dev-identity-key").encode()
+
+
+def _canonical(document: dict[str, Any]) -> bytes:
+    return json.dumps(document, sort_keys=True, separators=(",", ":")).encode()
+
+
+def issue_assertion(
+    attributes: dict[str, Any],
+    *,
+    issuer: str = "ngsh-local-piv",
+    expires_at: str | None = None,
+    lifetime_seconds: int = 3600,
+) -> dict[str, Any]:
+    """Issue a signed local PIV-style assertion.
+
+    The shape mirrors what IF-6 delivers: a subject, the clearance and
+    citizenship attributes the policy engine needs, an issuer, an expiry and a
+    signature. The signature is HMAC, not an X.509 chain, so this is a local
+    adapter and never an accredited credential.
+    """
+    if not isinstance(attributes, dict) or not attributes.get("subjectId"):
+        raise AuthenticationError("an assertion requires a 'subjectId'")
+    document = dict(attributes)
+    document.setdefault("kind", "user")
+    document["issuer"] = issuer
+    if expires_at is None:
+        expires_at = (datetime.now(UTC) + timedelta(seconds=lifetime_seconds)).isoformat()
+    document["expiresAt"] = expires_at
+    document["signature"] = hmac.new(_local_key(), _canonical(document), hashlib.sha256).hexdigest()
+    return document
+
+
+def verify_assertion(document: dict[str, Any]) -> dict[str, Any]:
+    """Verify a local assertion and return its actor attributes.
+
+    Expiry is checked before the signature is trusted for any decision, and the
+    signature is compared in constant time. Failures are authentication
+    failures, never a default actor.
+    """
+    if not isinstance(document, dict):
+        raise AuthenticationError("identity assertion must be an object")
+    signature = document.get("signature")
+    if not isinstance(signature, str) or not signature:
+        raise AuthenticationError("identity assertion is not signed")
+    unsigned = {key: value for key, value in document.items() if key != "signature"}
+    expected = hmac.new(_local_key(), _canonical(unsigned), hashlib.sha256).hexdigest()
+    if not hmac.compare_digest(signature, expected):
+        raise AuthenticationError("identity assertion signature is invalid")
+
+    expires_at = document.get("expiresAt")
+    if not isinstance(expires_at, str):
+        raise AuthenticationError("identity assertion has no expiry")
+    try:
+        expiry = datetime.fromisoformat(expires_at.replace("Z", "+00:00"))
+    except ValueError as exc:
+        raise AuthenticationError("identity assertion expiry is not ISO-8601") from exc
+    if expiry.tzinfo is None:
+        expiry = expiry.replace(tzinfo=UTC)
+    if expiry <= datetime.now(UTC):
+        raise AuthenticationError("identity assertion has expired")
+
+    actor_fields = {
+        key: value for key, value in document.items() if key not in {"issuer", "expiresAt", "signature"}
+    }
+    try:
+        Actor.model_validate(actor_fields)
+    except Exception as exc:  # pydantic ValidationError
+        raise AuthenticationError(f"identity assertion does not describe a valid actor: {exc}") from exc
+    return actor_fields
+
+
+class SimulatedPivIdentityProvider:
+    """A signed local PIV/ICAM adapter for end-to-end local exercise.
+
+    It is a real verification loop — signature, expiry and actor validation —
+    over a development key. It is selected only by ``piv-sim`` and only in the
+    ``local`` or ``edge`` profile.
+    """
+
+    def __init__(self, *, allow_anonymous: bool = False) -> None:
+        self._allow_anonymous = allow_anonymous
+
+    def resolve(self, authorization: str | None, **context: Any) -> IdentityContext:
+        if not authorization:
+            if self._allow_anonymous:
+                return IdentityContext(
+                    actor=DEV_ACTOR,
+                    source="development-default",
+                    authenticated=False,
+                    attributes={"note": "unauthenticated development request"},
+                )
+            raise AuthenticationError("no credential presented")
+        scheme, _, token = authorization.partition(" ")
+        if scheme.lower() != "bearer" or not token:
+            raise AuthenticationError("authorization header must use the Bearer scheme")
+        padded = token + "=" * (-len(token) % 4)
+        try:
+            document = json.loads(base64.urlsafe_b64decode(padded.encode("ascii")).decode("utf-8"))
+        except (binascii.Error, UnicodeDecodeError, json.JSONDecodeError) as exc:
+            raise AuthenticationError("bearer token is not a valid PIV assertion") from exc
+        attributes = verify_assertion(document)
+        return IdentityContext(
+            actor=Actor.model_validate(attributes),
+            source="piv-sim",
+            authenticated=True,
+            attributes={"issuer": document.get("issuer"), "expiresAt": document.get("expiresAt")},
+        )
+
+
 def build_identity_provider(kind: str, *, deployment_profile: str = "local") -> IdentityProvider:
     """Select an identity adapter, refusing development adapters outside local."""
     normalized = (kind or "stub").strip().lower()
 
-    if normalized == "stub":
+    if normalized in {"stub", "piv-sim"}:
         if deployment_profile not in {"local", "edge"}:
             raise RuntimeError(
-                "the stub identity provider is only permitted in the 'local' and 'edge' "
-                f"deployment profiles, not {deployment_profile!r}"
+                f"the {normalized} identity provider is only permitted in the 'local' and "
+                f"'edge' deployment profiles, not {deployment_profile!r}"
             )
+        if normalized == "piv-sim":
+            return SimulatedPivIdentityProvider()
         return StubIdentityProvider()
 
     if normalized == "piv":

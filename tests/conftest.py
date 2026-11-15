@@ -36,6 +36,7 @@ def settings(tmp_path: Path) -> Settings:
         program="NGSH-SHY",
         deployment_profile="local",
         identity_provider="stub",
+        data_dir=str(tmp_path / "data"),
     )
 
 

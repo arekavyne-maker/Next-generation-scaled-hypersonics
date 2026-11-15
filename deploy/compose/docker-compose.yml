@@ -891,6 +891,78 @@ services:
       retries: 12
       start_period: 20s
 
+  gateway-service:
+    <<: *ngsh-service-base
+    image: ${NGSH_GATEWAY_IMAGE:-ngsh/gateway-service:dev}
+    build:
+      context: ../../
+      dockerfile: services/gateway-service/Dockerfile
+      args:
+        SERVICE_NAME: gateway-service
+    container_name: ngsh-gateway-service
+    environment:
+      <<: *ngsh-common-env
+      NGSH_SERVICE_NAME: gateway-service
+      PORT: "8080"
+      NGSH_PORT: "8080"
+      NGSH_ONTOLOGY_URL: "http://ontology-service:8081"
+      NGSH_FABRIC_URL: "http://fabric-service:8082"
+      NGSH_POLICY_URL: "http://policy-service:8083"
+      NGSH_AUDIT_URL: "http://audit-service:8084"
+      NGSH_THREAD_URL: "http://thread-service:8085"
+      NGSH_INGEST_URL: "http://ingest-service:8086"
+      NGSH_ARCHITECTURE_URL: "http://architecture-service:8088"
+      NGSH_WORKFORCE_URL: "http://workforce-service:8089"
+      NGSH_MANUFACTURING_URL: "http://manufacturing-service:8090"
+      NGSH_TESTLAB_URL: "http://testlab-service:8091"
+      NGSH_SUPPLY_URL: "http://supply-service:8092"
+      NGSH_ENGAGEMENT_URL: "http://engagement-service:8093"
+      NGSH_INDUSTRIAL_URL: "http://industrial-service:8094"
+      NGSH_ANALYTICS_URL: "http://analytics-service:8095"
+      NGSH_INTEGRATION_URL: "http://integration-service:8096"
+    ports:
+      - target: 8080
+        published: "${GATEWAY_HOST_PORT:-8080}"
+        protocol: tcp
+        mode: host
+    depends_on:
+      ontology-service:
+        condition: service_healthy
+      fabric-service:
+        condition: service_healthy
+      policy-service:
+        condition: service_healthy
+      audit-service:
+        condition: service_healthy
+      thread-service:
+        condition: service_healthy
+      ingest-service:
+        condition: service_healthy
+      architecture-service:
+        condition: service_healthy
+      workforce-service:
+        condition: service_healthy
+      manufacturing-service:
+        condition: service_healthy
+      testlab-service:
+        condition: service_healthy
+      supply-service:
+        condition: service_healthy
+      engagement-service:
+        condition: service_healthy
+      industrial-service:
+        condition: service_healthy
+      analytics-service:
+        condition: service_healthy
+      integration-service:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8080/healthz >/dev/null || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+
   ingest-service:
     <<: *ngsh-service-base
     image: ${NGSH_INGEST_IMAGE:-ngsh/ingest-service:dev}
@@ -950,21 +1022,11 @@ services:
       NGINX_PORT: "8080"
     ports:
       - target: 8080
-        published: "${WEB_HOST_PORT:-8080}"
+        published: "${WEB_HOST_PORT:-3000}"
         protocol: tcp
         mode: host
     depends_on:
-      ontology-service:
-        condition: service_healthy
-      fabric-service:
-        condition: service_healthy
-      policy-service:
-        condition: service_healthy
-      audit-service:
-        condition: service_healthy
-      thread-service:
-        condition: service_healthy
-      ingest-service:
+      gateway-service:
         condition: service_healthy
     healthcheck:
       test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:8080/healthz || exit 1"]

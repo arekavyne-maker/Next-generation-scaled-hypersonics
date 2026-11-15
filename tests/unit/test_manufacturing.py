@@ -47,9 +47,7 @@ def test_traveller_advances_only_after_the_predecessor_completes():
 
 
 def test_traveller_marks_a_rework_run_nonconforming_and_names_it():
-    traveller = build_traveller(
-        PLAN, [_run("OP1", disposition="REWORK", nonconformanceId="NC:1")]
-    )
+    traveller = build_traveller(PLAN, [_run("OP1", disposition="REWORK", nonconformanceId="NC:1")])
     assert traveller["operations"][0]["status"] == "NONCONFORMING"
     assert traveller["nonconformances"][0]["nonconformanceId"] == "NC:1"
     assert not traveller["complete"]
@@ -61,9 +59,7 @@ def test_traveller_requires_at_least_one_operation():
 
 
 def test_drift_flags_a_parameter_beyond_three_sigma():
-    reference = [
-        {"measuredParameters": {"temp": value}} for value in (179.0, 180.0, 181.0, 180.5, 179.5)
-    ]
+    reference = [{"measuredParameters": {"temp": value}} for value in (179.0, 180.0, 181.0, 180.5, 179.5)]
     report = detect_drift(reference, {"measuredParameters": {"temp": 400.0}})
     assert report["status"] == "DRIFT"
     assert report["quarantine"] is True
@@ -71,9 +67,7 @@ def test_drift_flags_a_parameter_beyond_three_sigma():
 
 
 def test_drift_does_not_flag_a_normal_run():
-    reference = [
-        {"measuredParameters": {"temp": value}} for value in (179.0, 180.0, 181.0, 180.5, 179.5)
-    ]
+    reference = [{"measuredParameters": {"temp": value}} for value in (179.0, 180.0, 181.0, 180.5, 179.5)]
     assert detect_drift(reference, {"measuredParameters": {"temp": 180.2}})["status"] == "OK"
 
 
@@ -108,6 +102,39 @@ def test_genealogy_names_a_missing_hop_instead_of_skipping_it():
     )
     assert not report["complete"]
     assert any("PR:404" in gap for gap in report["gaps"])
+
+
+def test_genealogy_understands_the_contract_chain_of_custody_shape():
+    provenance = {
+        "materialIds": ["MAT:1"],
+        "processRunIds": ["PR:1"],
+        "chainOfCustody": [
+            {
+                "fromNodeId": "MAT:1",
+                "toNodeId": "PART:1",
+                "transferredAt": "2026-11-01T00:00:00+00:00",
+                "transferType": "RECEIPT",
+            },
+            {
+                "fromNodeId": "PART:1",
+                "toNodeId": "PART:404",
+                "transferredAt": "2026-11-02T00:00:00+00:00",
+                "transferType": "TRANSFER",
+            },
+        ],
+    }
+    report = assemble_genealogy(
+        "PART:1",
+        provenance,
+        known_runs={"PR:1"},
+        known_materials={"MAT:1"},
+        known_parts={"PART:1"},
+    )
+    assert [hop["sequence"] for hop in report["hops"]] == [1, 2]
+    assert report["hops"][0]["present"] is True
+    assert report["hops"][1]["present"] is False
+    assert not report["complete"]
+    assert any("PART:404" in gap for gap in report["gaps"])
 
 
 def test_genealogy_reports_absence_of_provenance_as_a_gap():

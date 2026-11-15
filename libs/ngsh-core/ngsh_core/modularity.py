@@ -105,9 +105,7 @@ def normalise_core(core_members: Any) -> tuple[dict[str, Any], ...]:
         if not isinstance(entity_id, str) or not entity_id:
             raise ValidationError(f"core member at index {index} is missing 'entityId'")
         if not isinstance(revision, str) or not revision:
-            raise ValidationError(
-                f"core member at index {index} ({entity_id}) must pin a 'revision'"
-            )
+            raise ValidationError(f"core member at index {index} ({entity_id}) must pin a 'revision'")
         key = (entity_type, entity_id)
         if key in seen:
             raise ValidationError(f"duplicate core member {entity_type}:{entity_id}")
@@ -216,9 +214,7 @@ def generate_variants(
 
         system_id = spec.get("systemId")
         if not isinstance(system_id, str) or not system_id.startswith("SYS:"):
-            raise ValidationError(
-                f"variant {designation!r} must name a 'systemId' of the form 'SYS:...'"
-            )
+            raise ValidationError(f"variant {designation!r} must name a 'systemId' of the form 'SYS:...'")
 
         overrides = spec.get("overrides") or {}
         if not isinstance(overrides, dict):
@@ -249,9 +245,7 @@ def generate_variants(
         for entity_id, revision in overrides.items():
             key = next((key for key in members if key[1] == entity_id), None)
             if key is None:
-                raise ValidationError(
-                    f"variant {designation!r} overrides unknown member {entity_id!r}"
-                )
+                raise ValidationError(f"variant {designation!r} overrides unknown member {entity_id!r}")
             if not isinstance(revision, str) or not revision:
                 raise ValidationError(
                     f"variant {designation!r} overrides {entity_id!r} with a non-string revision"
@@ -261,9 +255,7 @@ def generate_variants(
         for removal in spec.get("removals") or []:
             key = next((key for key in members if key[1] == str(removal)), None)
             if key is None:
-                raise ValidationError(
-                    f"variant {designation!r} removes unknown member {removal!r}"
-                )
+                raise ValidationError(f"variant {designation!r} removes unknown member {removal!r}")
             del members[key]
 
         bom = sorted(members.values(), key=lambda item: (item["entityType"], item["entityId"]))
@@ -435,8 +427,7 @@ def assess_insertion(
 
     required_slots = [str(item) for item in candidate.get("requiredSlotIds") or []]
     known_slots = {
-        str(slot.get("slotId") or slot.get("id"))
-        for slot in [*slots, *(existing_insertions or [])]
+        str(slot.get("slotId") or slot.get("id")) for slot in [*slots, *(existing_insertions or [])]
     }
     unknown = sorted(set(required_slots) - known_slots)
     if unknown:
@@ -444,8 +435,7 @@ def assess_insertion(
             {
                 "kind": "unknown_slot",
                 "severity": "ERROR",
-                "message": "the candidate names production slots that do not exist: "
-                + ", ".join(unknown),
+                "message": "the candidate names production slots that do not exist: " + ", ".join(unknown),
             }
         )
 
@@ -526,10 +516,7 @@ def generate_icd(
         {
             "id": "2",
             "title": "Endpoints",
-            "body": (
-                f"Provider: {from_name} ({from_system_id}); "
-                f"Consumer: {to_name} ({to_system_id})."
-            ),
+            "body": (f"Provider: {from_name} ({from_system_id}); Consumer: {to_name} ({to_system_id})."),
         },
         {
             "id": "3",
@@ -615,14 +602,14 @@ def catalogue_report(
     types and its interface count. An entry that is a slide title is reported
     as incomplete rather than counted toward the minimum.
     """
-    entries = [dict(item) for item in (architectures if architectures is not None else REFERENCE_ARCHITECTURES)]
+    entries = [
+        dict(item) for item in (architectures if architectures is not None else REFERENCE_ARCHITECTURES)
+    ]
     valid: list[dict[str, Any]] = []
     incomplete: list[dict[str, Any]] = []
     for entry in entries:
         missing = [
-            field
-            for field in REFERENCE_ARCHITECTURE_REQUIRED
-            if entry.get(field) in (None, "", [], {})
+            field for field in REFERENCE_ARCHITECTURE_REQUIRED if entry.get(field) in (None, "", [], {})
         ]
         if missing:
             incomplete.append({"id": entry.get("id"), "missing": missing})

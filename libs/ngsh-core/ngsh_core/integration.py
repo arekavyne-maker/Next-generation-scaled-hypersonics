@@ -157,9 +157,7 @@ def interface_register_report(entries: list[dict[str, Any]] | None = None) -> di
             problems.append({"id": entry.get("id"), "problems": entry_problems})
 
     inbound_only = [
-        entry["id"]
-        for entry in catalogue
-        if str(entry.get("status") or "").upper() == "INBOUND_ONLY"
+        entry["id"] for entry in catalogue if str(entry.get("status") or "").upper() == "INBOUND_ONLY"
     ]
     active = [entry["id"] for entry in catalogue if str(entry.get("status") or "").upper() == "ACTIVE"]
     return {

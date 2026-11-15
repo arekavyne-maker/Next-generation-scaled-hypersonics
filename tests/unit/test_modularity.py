@@ -171,9 +171,7 @@ def test_an_icd_is_derived_from_the_registered_interface_and_verifies():
     icd = generate_icd(interface=interface, from_system=from_system, to_system=to_system)
     assert icd["icdId"].startswith("ICD:")
     assert icd["interfaceDigest"] == interface["digest"]
-    verification = verify_icd(
-        icd=icd, interface=interface, from_system=from_system, to_system=to_system
-    )
+    verification = verify_icd(icd=icd, interface=interface, from_system=from_system, to_system=to_system)
     assert verification["conformant"] is True
 
 
@@ -183,9 +181,7 @@ def test_an_icd_cannot_drift_from_the_interface_revision():
     to_system = {"id": "SYS:2", "attributes": {"name": "Aegis"}}
     icd = generate_icd(interface=interface, from_system=from_system, to_system=to_system)
     changed = {**interface, "characteristics": {**interface["characteristics"], "latency": 30}}
-    verification = verify_icd(
-        icd=icd, interface=changed, from_system=from_system, to_system=to_system
-    )
+    verification = verify_icd(icd=icd, interface=changed, from_system=from_system, to_system=to_system)
     assert verification["conformant"] is False
 
 

@@ -52,9 +52,7 @@ def _projector(request: Request) -> GraphProjector:
 def _rows(request: Request, key: str) -> list[dict[str, Any]]:
     entities: list[dict[str, Any]] = []
     for entity_type in KPI_INPUTS[key]:
-        entities.extend(
-            _projector(request).entities(entity_type=entity_type, limit=10_000)
-        )
+        entities.extend(_projector(request).entities(entity_type=entity_type, limit=10_000))
     return entities
 
 

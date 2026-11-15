@@ -44,6 +44,7 @@ from ngsh_core.modularity import (
 from ngsh_core.ontology import OntologyLoader
 from ngsh_core.publish import actor_for, entity_document, entity_event, publish
 from ngsh_core.store import open_database
+from ngsh_core.sysml import export_sysml, import_sysml
 
 from .repository import BaselineRepository, InterfaceRepository
 
@@ -67,6 +68,106 @@ def _repo(request: Request) -> BaselineRepository:
 
 def _interfaces(request: Request) -> InterfaceRepository:
     return request.app.state.interfaces
+
+
+def _attributes(entity: dict[str, Any]) -> dict[str, Any]:
+    return entity.get("attributes") or {}
+
+
+# -- SysML v2 exchange (A-5) -------------------------------------------------
+
+
+def _sysml_source(request: Request) -> dict[str, list[dict[str, Any]]]:
+    projector = _projector(request)
+    systems = [
+        {"id": entity["id"], "attributes": _attributes(entity)}
+        for entity in projector.entities(entity_type="System", limit=5000)
+    ]
+    subsystems = [
+        {"id": entity["id"], "attributes": _attributes(entity)}
+        for entity in projector.entities(entity_type="Subsystem", limit=5000)
+    ]
+    interfaces = []
+    for entity in projector.entities(entity_type="Interface", limit=5000):
+        attributes = _attributes(entity)
+        interfaces.append(
+            {
+                "interfaceId": entity["id"],
+                "fromSystemId": attributes.get("fromSystemId"),
+                "toSystemId": attributes.get("toSystemId"),
+                "characteristics": attributes.get("characteristics") or {},
+            }
+        )
+    requirements = [
+        {"id": entity["id"], "attributes": _attributes(entity)}
+        for entity in projector.entities(entity_type="Requirement", limit=5000)
+    ]
+    return {
+        "systems": systems,
+        "subsystems": subsystems,
+        "interfaces": interfaces,
+        "requirements": requirements,
+    }
+
+
+@router.get("/sysml/export", summary="Export the architecture as SysML v2 text")
+async def sysml_export(request: Request, packageName: str = Query("NGSH")) -> dict[str, Any]:
+    """Hand the model across the IF-5 boundary without losing identity."""
+    return export_sysml(**_sysml_source(request), package_name=packageName)
+
+
+@router.post("/sysml/import", summary="Validate a SysML v2 package against the thread")
+async def sysml_import(request: Request, body: dict[str, Any] = Body(...)) -> dict[str, Any]:
+    """Parse an inbound package and report what this thread already knows.
+
+    Import is a validation step, not a second write path. A round-trip of an
+    exported package returns the same identifiers; an unknown identifier is
+    named so the authoring tool's owner can decide whether it is new work or a
+    naming mismatch.
+    """
+    model = body.get("model")
+    if not isinstance(model, str) or not model.strip():
+        raise ValidationError("'model' must be SysML v2 text")
+    parsed = import_sysml(model)
+    projector = _projector(request)
+    # SysML ``part def`` covers both System and Subsystem. Recognition is
+    # therefore against the union, otherwise a round-trip of an exported
+    # package would report the subsystems as unknown identifiers.
+    known = {
+        "systems": {
+            entity["id"]
+            for entity in (
+                *projector.entities(entity_type="System", limit=5000),
+                *projector.entities(entity_type="Subsystem", limit=5000),
+            )
+        },
+        "interfaces": {entity["id"] for entity in projector.entities(entity_type="Interface", limit=5000)},
+        "requirements": {
+            entity["id"] for entity in projector.entities(entity_type="Requirement", limit=5000)
+        },
+    }
+    unknown = {
+        "systems": [row["id"] for row in parsed["systems"] if row["id"] not in known["systems"]],
+        "interfaces": [
+            row["interfaceId"]
+            for row in parsed["interfaces"]
+            if row["interfaceId"] not in known["interfaces"]
+        ],
+        "requirements": [
+            row["id"] for row in parsed["requirements"] if row["id"] not in known["requirements"]
+        ],
+    }
+    return {
+        **parsed,
+        "recognised": {
+            "systems": len(parsed["systems"]) - len(unknown["systems"]),
+            "interfaces": len(parsed["interfaces"]) - len(unknown["interfaces"]),
+            "requirements": len(parsed["requirements"]) - len(unknown["requirements"]),
+        },
+        "unknown": unknown,
+        "accepted": True,
+        "note": "import validates; authoring changes still enter through the normal entity endpoints",
+    }
 
 
 # -- configuration baselines -------------------------------------------------
@@ -423,9 +524,7 @@ async def icd_generate(request: Request, body: dict[str, Any] = Body(...)) -> di
         raise NotFoundError(f"no System with id {record['toSystemId']!r}")
 
     icd = generate_icd(interface=record, from_system=from_system, to_system=to_system)
-    verification = verify_icd(
-        icd=icd, interface=record, from_system=from_system, to_system=to_system
-    )
+    verification = verify_icd(icd=icd, interface=record, from_system=from_system, to_system=to_system)
     return {"icd": icd, "verification": verification}
 
 
@@ -449,8 +548,12 @@ async def reference_architectures() -> dict[str, Any]:
     return catalogue_report(list(REFERENCE_ARCHITECTURES))
 
 
-@router.post("/reference-architectures/report", summary="Validate a supplied reference-architecture catalogue")
-async def reference_architectures_report(request: Request, body: dict[str, Any] = Body(...)) -> dict[str, Any]:
+@router.post(
+    "/reference-architectures/report", summary="Validate a supplied reference-architecture catalogue"
+)
+async def reference_architectures_report(
+    request: Request, body: dict[str, Any] = Body(...)
+) -> dict[str, Any]:
     architectures = body.get("architectures")
     if not isinstance(architectures, list):
         raise ValidationError("'architectures' must be a list")

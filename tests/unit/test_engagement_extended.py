@@ -125,9 +125,7 @@ def test_an_incompatible_plugin_contract_is_refused():
 
 
 def test_a_plugin_dependency_outside_the_host_envelope_is_refused():
-    plugin = _plugin(
-        dependencies=[{"name": "high-mach aero", "envelope": {"mach": {"min": 10, "max": 20}}}]
-    )
+    plugin = _plugin(dependencies=[{"name": "high-mach aero", "envelope": {"mach": {"min": 10, "max": 20}}}])
     with pytest.raises(ValidationError):
         load_plugin(plugin, host_envelope={"mach": 8})
 

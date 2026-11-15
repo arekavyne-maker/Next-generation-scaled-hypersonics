@@ -80,7 +80,9 @@ def test_scheduling_assigns_by_priority_and_reports_unscheduled_demand():
 
 def test_scheduling_refuses_a_demand_no_range_can_satisfy():
     report = optimise_schedule(
-        demands=[{"demandId": "DEM:X", "priority": 1, "durationDays": 1, "requiredAccreditations": ["TS_SCI"]}],
+        demands=[
+            {"demandId": "DEM:X", "priority": 1, "durationDays": 1, "requiredAccreditations": ["TS_SCI"]}
+        ],
         ranges=RANGES,
     )
     assert report["assignments"] == []

@@ -63,7 +63,12 @@ def test_score_entity_returns_zero_when_one_term_is_absent():
 
 def _result(result_id: str, uri: str, snapshot: dict | None, **extra) -> dict:
     attributes = {"dataSetUris": [uri], "configurationSnapshot": snapshot, **extra}
-    return {"id": result_id, "type": "TestResult", "attributes": attributes, "classification": {"level": "CUI"}}
+    return {
+        "id": result_id,
+        "type": "TestResult",
+        "attributes": attributes,
+        "classification": {"level": "CUI"},
+    }
 
 
 def test_dataset_catalogue_marks_an_unconfigured_dataset_incomplete():

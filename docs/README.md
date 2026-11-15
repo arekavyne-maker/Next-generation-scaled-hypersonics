@@ -9,7 +9,7 @@ This directory holds the architecture and programme documentation for NGSH (Next
 | Directory or file | Subject |
 |---|---|
 | [`adr/`](adr/README.md) | Eight Architecture Decision Records — what was decided, why, and what it costs — plus the ADR index and process |
-| [`architecture/`](architecture/README.md) | Five architecture documents — the platform context, the shared ontology, the foundation services, the security architecture and the deployment topology |
+| [`architecture/`](architecture/README.md) | Eight architecture documents — the platform context, the shared ontology, the foundation services, the security architecture, the deployment topology, the Pillar A first slice, pillar coverage and the complete build |
 | [`roadmap/increments.md`](roadmap/increments.md) | Increment 0 (the shared foundation) through Increment 5, with exit criteria, dependencies and the risk each increment retires |
 | [`roadmap/work-packages.md`](roadmap/work-packages.md) | The full work breakdown: 49 work packages with acceptance criteria, dependencies, size in engineer-weeks and pod assignment |
 | [`staffing.md`](staffing.md) | The pod model, the pod composition rules, three reference organisations (≈25, ≈60, ≈120 engineers) and the cleared-workforce constraints |

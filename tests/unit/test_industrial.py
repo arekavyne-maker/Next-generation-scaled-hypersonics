@@ -60,7 +60,13 @@ def test_surge_rejects_a_confidence_level_it_cannot_report():
 
 def test_estimate_quality_flags_a_parametric_estimate_presented_as_actual():
     check = estimate_quality(
-        {"estimateId": "CE:1", "amount": 10.0, "basis": "PARAMETRIC", "confidence": 0.6, "presentedAs": "ACTUAL"}
+        {
+            "estimateId": "CE:1",
+            "amount": 10.0,
+            "basis": "PARAMETRIC",
+            "confidence": 0.6,
+            "presentedAs": "ACTUAL",
+        }
     )
     assert check["qualityOk"] is False
     assert any("basis_misrepresentation" in item for item in check["violations"])

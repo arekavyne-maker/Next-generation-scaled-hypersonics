@@ -477,7 +477,7 @@ PSDD §11 states: "Each phase yields a standalone, revenue-capable product (risk
 ## 12. Implementation status in this repository
 
 The repository contains a working reference implementation of the platform and
-of all six pillars. That is not the same thing as an increment exit. The table
+of all eight pillars. That is not the same thing as an increment exit. The table
 separates what is runnable today from what still requires an institution, a
 range or a production dataset.
 

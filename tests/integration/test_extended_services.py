@@ -163,7 +163,9 @@ def test_industrial_surge_is_verified_annotated_and_readable(industrial, operato
                     "surgeCapacity": {"unitsPerHour": 4, "shiftsPerDay": 2},
                 },
             ),
-            _doc("Supplier", "SUP:1", {"name": "Supplier 1", "tier": 1, "riskScore": 0.1, "leadTimeDays": 10}),
+            _doc(
+                "Supplier", "SUP:1", {"name": "Supplier 1", "tier": 1, "riskScore": 0.1, "leadTimeDays": 10}
+            ),
         ],
     )
     response = industrial.client.post(
@@ -186,7 +188,15 @@ def test_industrial_reconstitution_and_affordability(industrial, operator):
         operator,
         [
             _doc("Part", "PART:1", {"partNumber": "P-1", "name": "Nozzle"}),
-            _doc("Requirement", "REQ:1", {"statement": "The nozzle shall survive 300 s.", "verificationMethod": "TEST", "status": "BASELINED"}),
+            _doc(
+                "Requirement",
+                "REQ:1",
+                {
+                    "statement": "The nozzle shall survive 300 s.",
+                    "verificationMethod": "TEST",
+                    "status": "BASELINED",
+                },
+            ),
         ],
     )
     _seed_relation(industrial.app, operator, "satisfies", ("Part", "PART:1"), ("Requirement", "REQ:1"))
@@ -211,9 +221,7 @@ def test_industrial_reconstitution_and_affordability(industrial, operator):
         json={
             "requirementIds": ["REQ:1"],
             "quantity": 10,
-            "costEstimates": [
-                {"subjectId": "PART:1", "amount": 900.0, "basis": "ACTUAL", "confidence": 0.9}
-            ],
+            "costEstimates": [{"subjectId": "PART:1", "amount": 900.0, "basis": "ACTUAL", "confidence": 0.9}],
         },
     )
     assert affordability.status_code == 200
@@ -293,7 +301,13 @@ def test_architecture_assesses_insertion_against_the_projected_subsystem(archite
     _seed(
         architecture.app,
         operator,
-        [_doc("Subsystem", "SUB:TPS", {"parentSystemId": "SYS:1", "name": "TPS", "subsystemType": "THERMAL", "maturity": "TRL_5"})],
+        [
+            _doc(
+                "Subsystem",
+                "SUB:TPS",
+                {"parentSystemId": "SYS:1", "name": "TPS", "subsystemType": "THERMAL", "maturity": "TRL_5"},
+            )
+        ],
     )
     response = architecture.client.post(
         "/v1/insertion/assess",
@@ -328,7 +342,13 @@ def test_testlab_models_range_capacity_and_schedule(testlab, operator):
             _doc(
                 "TestCampaign",
                 "TC:1",
-                {"name": "Campaign 1", "campaignType": "GROUND", "status": "PLANNED", "priority": 9, "durationDays": 1},
+                {
+                    "name": "Campaign 1",
+                    "campaignType": "GROUND",
+                    "status": "PLANNED",
+                    "priority": 9,
+                    "durationDays": 1,
+                },
             ),
         ],
     )
@@ -439,8 +459,18 @@ def test_workforce_packages_curriculum_and_blocks_a_restricted_extract(workforce
         workforce.app,
         operator,
         [
-            _doc("Part", "PART:OPEN", {"partNumber": "P-2", "name": "Open panel"}, classification="UNCLASSIFIED"),
-            _doc("Part", "PART:HIDDEN", {"partNumber": "P-3", "name": "Secret panel"}, classification="RESTRICTED"),
+            _doc(
+                "Part",
+                "PART:OPEN",
+                {"partNumber": "P-2", "name": "Open panel"},
+                classification="UNCLASSIFIED",
+            ),
+            _doc(
+                "Part",
+                "PART:HIDDEN",
+                {"partNumber": "P-3", "name": "Secret panel"},
+                classification="RESTRICTED",
+            ),
         ],
     )
     package = workforce.client.post(
@@ -537,9 +567,7 @@ def _engagement_seed(app, actor: Actor, *, scenario_type: str = "CUSTODY") -> No
 
 def test_engagement_scores_fire_control_quality_from_observations(engagement, operator):
     _engagement_seed(engagement.app, operator)
-    response = engagement.client.post(
-        "/v1/fire-control/measure", json={"observationIds": ["TOBS:1"]}
-    )
+    response = engagement.client.post("/v1/fire-control/measure", json={"observationIds": ["TOBS:1"]})
     assert response.status_code == 200
     metrics = {row["metric"]: row for row in response.json()["metrics"]}
     assert metrics["trackPurity"]["value"] == 1.0
