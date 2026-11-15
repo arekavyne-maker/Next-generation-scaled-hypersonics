@@ -21,6 +21,7 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Any
 
+from .architecture import requirement_coverage
 from .envelope import EventEnvelope
 from .store import Executor, canonical_json
 
@@ -418,10 +419,11 @@ class GraphProjector:
     def requirement_coverage(self, requirement_id: str) -> dict[str, Any]:
         """Verification status of a requirement.
 
-        A requirement is verified when at least one test result that verifies
-        it passed. Partial coverage - some requirements verified, others not -
-        is the normal state of a programme in flight, so the response reports
-        the ratio rather than a bare boolean.
+        The status rule lives in :mod:`ngsh_core.architecture` so that the
+        architecture service and the thread projection cannot disagree about
+        whether a requirement is verified. This method only supplies the
+        graph facts: the requirement, its ``verifies`` evidence and its
+        ``satisfies`` allocations.
         """
         requirement = self.entity("Requirement", requirement_id)
         verifying = self._db.fetchall(
@@ -446,11 +448,6 @@ class GraphProjector:
                 # silently treating the requirement as unverified.
                 dangling.append(result_id)
 
-        outcomes = [r.get("attributes", {}).get("outcome") for r in results]
-        passed = sum(1 for outcome in outcomes if outcome == "PASS")
-        failed = sum(1 for outcome in outcomes if outcome == "FAIL")
-        verified = passed > 0 and failed == 0
-
         allocated = self._db.fetchall(
             "SELECT r.body_json FROM relations r "
             "WHERE r.type = 'satisfies' AND r.to_id = ? AND r.retracted_at IS NULL",
@@ -466,35 +463,13 @@ class GraphProjector:
                 }
             )
 
-        gaps: list[str] = []
-        if dangling:
-            gaps.append(
-                "verification evidence references test results that are not in the thread: "
-                + ", ".join(sorted(dangling))
-            )
-        if not results:
-            gaps.append("no verification evidence has been recorded against this requirement")
-        elif failed:
-            gaps.append(f"{failed} verification result(s) failed")
-        if not allocated_to:
-            gaps.append("no design element has been allocated to this requirement")
-
-        return {
-            "requirement": requirement or {"id": requirement_id, "type": "Requirement"},
-            "verified": verified,
-            "verifyingResults": [
-                {
-                    "id": r.get("id"),
-                    "outcome": r.get("attributes", {}).get("outcome"),
-                    "testMethod": r.get("attributes", {}).get("testMethod"),
-                    "reviewedBy": r.get("attributes", {}).get("reviewedBy"),
-                }
-                for r in results
-            ],
-            "coverage": round(passed / len(results), 4) if results else 0.0,
-            "allocatedTo": allocated_to,
-            "gaps": gaps,
-        }
+        return requirement_coverage(
+            requirement,
+            results,
+            allocated_to=allocated_to,
+            dangling=dangling,
+            requirement_id=requirement_id,
+        )
 
     def stats(self) -> dict[str, Any]:
         entity_rows = self._db.fetchall("SELECT type AS name, COUNT(*) AS n FROM entities GROUP BY type")

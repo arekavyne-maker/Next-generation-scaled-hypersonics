@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Run the six foundation services locally.
+"""Run the foundation and the Pillar A first slice locally.
 
 Starts every service in a background thread and blocks until interrupted.
 This is the local development topology: one process, one platform database,
@@ -31,6 +31,7 @@ SERVICES: list[tuple[str, str, int]] = [
     ("audit", "ngsh_audit.app:create_app", 8084),
     ("thread", "ngsh_thread.app:create_app", 8085),
     ("ingest", "ngsh_ingest.app:create_app", 8086),
+    ("architecture", "ngsh_architecture.app:create_app", 8088),
 ]
 
 
@@ -72,7 +73,7 @@ def main() -> int:
         threading.Thread(target=server.run, name=f"ngsh-{name}", daemon=True).start()
         print(f"  {name:<9} http://127.0.0.1:{port}")
 
-    print("\nNGSH foundation running. Press Ctrl-C to stop.\n")
+    print("\nNGSH platform running. Press Ctrl-C to stop.\n")
 
     stop = threading.Event()
 

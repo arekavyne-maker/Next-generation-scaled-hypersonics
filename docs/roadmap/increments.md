@@ -185,6 +185,22 @@ At the end of Increment 1, a cleared workforce can be trained against the actual
 | **R-01 Classification friction** (reduced) | The first academic delivery proves the extract pipeline works under real conditions, before the classified content arrives |
 | **R-06 Budget cyclicality** (reduced) | A workforce and industrial-base framing with a delivered product is durable across budget cycles (PSDD §13) |
 
+### Delivery status
+
+The software slice of this increment is being built in dependency order. The
+table records what exists in the repository today, not what the increment
+commits to.
+
+| Work package | Capability | Status | Evidence |
+|---|---|---|---|
+| WP-1.1 Configuration baseline | A-1 (first slice) | **Delivered** | `services/architecture-service`, [`../architecture/06-pillar-a-first-slice.md`](../architecture/06-pillar-a-first-slice.md) §2 |
+| WP-1.2 Requirements and traceability | A-3 (first slice) | **Delivered** | Same service, same document §4; the evidence rule is shared with the thread projection |
+| WP-1.3 Digital-twin training environment | E-1 | Not started | Depends on pilot institutions and AR/VR hardware |
+| WP-1.4 Curriculum packaging | E-2 | Not started | Depends on WP-1.3 and WP-1.7 |
+| WP-1.5 Skills credentialing | E-3 | Not started | Next software work package |
+| WP-1.6 Workforce demand model | E-4 | Not started | Depends on WP-1.5 and access to classified demand data |
+| WP-1.7 Sandbox and sanitized extract | E-5 | Not started | Depends on the security review workflow and a partner environment |
+
 ## 5. Increment 2 — Manufacturing and test data
 
 ### Objective

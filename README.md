@@ -72,7 +72,7 @@ machine-learning drift detector.
 └──────────────────────────────────────────────────────────────────────────────────┘
 ```
 
-The six foundation services are independently deployable, communicate over
+The foundation services are independently deployable, communicate over
 plain HTTP, and store their state behind a small executor interface that runs
 on SQLite locally and PostgreSQL in an accredited environment.
 
@@ -85,7 +85,7 @@ Requires [uv](https://docs.astral.sh/uv/) and Python 3.12+. No Docker needed.
 ```bash
 make setup          # install dependencies
 make verify         # lint + contract validation + full test suite
-make dev            # run all six services locally
+make dev            # run the foundation plus the Pillar A slice
 make demo           # in another terminal: walk the foundation end to end
 make demo-edge      # in another terminal: walk the edge annex flow
 ```
@@ -105,6 +105,7 @@ evidence, take a policy decision, and verify the audit chain.
 | audit | 8084 | The tamper-evident, hash-chained ledger |
 | thread | 8085 | The digital thread projection and its traversal queries |
 | ingest | 8086 | Bulk admission of test, telemetry and manufacturing data |
+| architecture | 8088 | Pillar A first slice: configuration baselines, interface registry, requirement traceability |
 
 Every service exposes `/healthz`, `/readyz`, `/v1/service/info` and OpenAPI
 at `/docs`.
@@ -126,7 +127,7 @@ contracts/            The contract layer — JSON Schema, registry, policy, even
 
 libs/ngsh-core/       Shared domain primitives: envelope, ontology, policy,
                       audit, event log, projection, identity, storage
-services/             The six foundation services, each independently deployable
+services/             Foundation services and the Pillar A first slice, each independently deployable
 apps/web/             The engineering console
 apps/edge-agent/      The edge annex agent (degraded mode, reconciliation)
 tests/                unit · integration · e2e · contract parity

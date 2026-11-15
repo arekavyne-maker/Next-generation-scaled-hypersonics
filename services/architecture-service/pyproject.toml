@@ -1,0 +1,23 @@
+[project]
+name = "ngsh-architecture-service"
+version = "0.1.0"
+description = "NGSH architecture service: content-addressed configuration baselines, the interface registry and requirement-to-test traceability (Pillar A first slice)."
+requires-python = ">=3.12"
+license = { text = "Proprietary" }
+dependencies = ["ngsh-core"]
+
+[project.scripts]
+ngsh-architecture-service = "ngsh_architecture.app:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/ngsh_architecture"]
+
+[tool.ruff]
+# Inherit the repository-wide ruff configuration so that the settings
+# cannot drift between packages.
+extend = "../../pyproject.toml"
+extend-exclude = ["**/generated/**"]

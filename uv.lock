@@ -5,6 +5,7 @@ requires-python = ">=3.12"
 [manifest]
 members = [
     "ngsh",
+    "ngsh-architecture-service",
     "ngsh-audit-service",
     "ngsh-core",
     "ngsh-edge-agent",
@@ -384,6 +385,7 @@ name = "ngsh"
 version = "0.1.0"
 source = { virtual = "." }
 dependencies = [
+    { name = "ngsh-architecture-service" },
     { name = "ngsh-audit-service" },
     { name = "ngsh-core" },
     { name = "ngsh-edge-agent" },
@@ -407,6 +409,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
+    { name = "ngsh-architecture-service", editable = "services/architecture-service" },
     { name = "ngsh-audit-service", editable = "services/audit-service" },
     { name = "ngsh-core", editable = "libs/ngsh-core" },
     { name = "ngsh-edge-agent", editable = "apps/edge-agent" },
@@ -427,6 +430,17 @@ dev = [
     { name = "pytest-cov", specifier = ">=5.0" },
     { name = "ruff", specifier = ">=0.5" },
 ]
+
+[[package]]
+name = "ngsh-architecture-service"
+version = "0.1.0"
+source = { editable = "services/architecture-service" }
+dependencies = [
+    { name = "ngsh-core" },
+]
+
+[package.metadata]
+requires-dist = [{ name = "ngsh-core", editable = "libs/ngsh-core" }]
 
 [[package]]
 name = "ngsh-audit-service"

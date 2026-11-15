@@ -17,7 +17,7 @@ export NGSH_DSN ?= sqlite:///./$(DATA_DIR)/ngsh.db
 export NGSH_TENANT ?= ngsh
 export NGSH_DEPLOYMENT_PROFILE ?= local
 
-SERVICE_PORTS := ontology:8081 fabric:8082 policy:8083 audit:8084 thread:8085 ingest:8086
+SERVICE_PORTS := ontology:8081 fabric:8082 policy:8083 audit:8084 thread:8085 ingest:8086 architecture:8088
 
 .PHONY: help
 help: ## Show the available targets
@@ -64,7 +64,7 @@ codegen-check: ## Fail if the generated models are out of date
 	$(PY) tools/codegen/generate.py --check
 
 .PHONY: dev
-dev: ## Run all six foundation services locally
+dev: ## Run the foundation and the Pillar A first slice locally
 	@$(PY) scripts/run_stack.py
 
 .PHONY: dev-ontology
@@ -90,6 +90,10 @@ dev-thread: ## Run the thread service
 .PHONY: dev-ingest
 dev-ingest: ## Run the ingest service
 	NGSH_SERVICE_NAME=ingest NGSH_PORT=8086 $(PY) -m ngsh_ingest.app
+
+.PHONY: dev-architecture
+dev-architecture: ## Run the architecture service (Pillar A first slice)
+	NGSH_SERVICE_NAME=architecture NGSH_PORT=8088 $(PY) -m ngsh_architecture.app
 
 .PHONY: demo
 demo: ## Exercise the full vertical slice against the running stack

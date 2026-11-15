@@ -13,6 +13,7 @@ This directory holds the architecture documentation for the NGSH platform. Where
 | [`03-foundation-services.md`](03-foundation-services.md) | The six foundation services — ontology, fabric, policy, audit, thread, ingest — their APIs, stores, scaling, failure modes and events; the end-to-end "record a test result" sequence | Platform engineers; pillar engineers building on the foundation; the foundation exit criteria |
 | [`04-security-architecture.md`](04-security-architecture.md) | Zero-trust posture, the attribute model, PDP/PEP topology, physical partitioning, identity and clearance verification, the audit trail, key management, the trust-boundary diagram, accreditation boundaries, SBOM and CMMC L2+ obligations | Security engineers; the security office; assessors; anyone adding a service or a data path |
 | [`05-deployment-architecture.md`](05-deployment-architecture.md) | The three zones, the four deployment profiles, capability declarations, the reconciliation path, the degraded-mode behaviour table, configuration and promotion | Platform and SRE engineers; field and range operators; programme management |
+| [`06-pillar-a-first-slice.md`](06-pillar-a-first-slice.md) | What Increment 1's Pillar A slice delivers: content-addressed configuration baselines, the interface registry, requirement traceability and rollup, and an explicit list of what is not yet delivered | Pillar engineers building on A-1/A-3; assessors checking the first slice against its acceptance criteria |
 
 ## Reading order
 

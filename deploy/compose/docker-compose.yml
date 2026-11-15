@@ -491,6 +491,52 @@ services:
       retries: 12
       start_period: 20s
 
+  architecture-service:
+    <<: *ngsh-service-base
+    image: ${NGSH_ARCHITECTURE_IMAGE:-ngsh/architecture-service:dev}
+    build:
+      context: ../../
+      dockerfile: services/architecture-service/Dockerfile
+      args:
+        SERVICE_NAME: architecture-service
+    container_name: ngsh-architecture-service
+    environment:
+      <<: *ngsh-common-env
+      NGSH_SERVICE_NAME: architecture-service
+      PORT: "8088"
+      NGSH_PORT: "8088"
+      NGSH_DATA_DIR: /var/lib/ngsh/architecture
+      NGSH_FABRIC_URL: "http://fabric-service:8082"
+      NGSH_ONTOLOGY_URL: "http://ontology-service:8081"
+      NGSH_POLICY_URL: "http://policy-service:8083"
+      NGSH_AUDIT_URL: "http://audit-service:8084"
+      NGSH_THREAD_URL: "http://thread-service:8085"
+    volumes:
+      - ngsh-data:/var/lib/ngsh/platform
+      - ngsh-architecture-data:/var/lib/ngsh/architecture
+    ports:
+      - target: 8088
+        published: "${ARCHITECTURE_HOST_PORT:-8088}"
+        protocol: tcp
+        mode: host
+    depends_on:
+      init-data:
+        condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
+      fabric-service:
+        condition: service_healthy
+      ontology-service:
+        condition: service_healthy
+      thread-service:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8088/healthz >/dev/null || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+
   ingest-service:
     <<: *ngsh-service-base
     image: ${NGSH_INGEST_IMAGE:-ngsh/ingest-service:dev}
@@ -721,6 +767,8 @@ volumes:
     name: ngsh-graph-data
   ngsh-ingest-data:
     name: ngsh-ingest-data
+  ngsh-architecture-data:
+    name: ngsh-architecture-data
   ngsh-edge-data:
     name: ngsh-edge-data
   ngsh-edge-fabric-data:

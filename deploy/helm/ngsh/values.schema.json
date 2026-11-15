@@ -313,6 +313,7 @@
             "audit": { "$ref": "#/definitions/profileServiceOverlay" },
             "thread": { "$ref": "#/definitions/profileServiceOverlay" },
             "ingest": { "$ref": "#/definitions/profileServiceOverlay" },
+            "architecture": { "$ref": "#/definitions/profileServiceOverlay" },
             "web": { "$ref": "#/definitions/profileServiceOverlay" }
           }
         }
@@ -579,7 +580,7 @@
     "services": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["ontology", "fabric", "policy", "audit", "thread", "ingest", "web"],
+      "required": ["ontology", "fabric", "policy", "audit", "thread", "ingest", "architecture", "web"],
       "properties": {
         "ontology": { "$ref": "#/definitions/service" },
         "fabric": { "$ref": "#/definitions/service" },
@@ -587,6 +588,7 @@
         "audit": { "$ref": "#/definitions/service" },
         "thread": { "$ref": "#/definitions/service" },
         "ingest": { "$ref": "#/definitions/service" },
+        "architecture": { "$ref": "#/definitions/service" },
         "web": { "$ref": "#/definitions/service" }
       }
     }
