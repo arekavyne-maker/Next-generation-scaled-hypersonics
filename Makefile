@@ -17,7 +17,7 @@ export NGSH_DSN ?= sqlite:///./$(DATA_DIR)/ngsh.db
 export NGSH_TENANT ?= ngsh
 export NGSH_DEPLOYMENT_PROFILE ?= local
 
-SERVICE_PORTS := ontology:8081 fabric:8082 policy:8083 audit:8084 thread:8085 ingest:8086 architecture:8088
+SERVICE_PORTS := ontology:8081 fabric:8082 policy:8083 audit:8084 thread:8085 ingest:8086 architecture:8088 workforce:8089 manufacturing:8090 testlab:8091 supply:8092 engagement:8093
 
 .PHONY: help
 help: ## Show the available targets
@@ -95,9 +95,33 @@ dev-ingest: ## Run the ingest service
 dev-architecture: ## Run the architecture service (Pillar A first slice)
 	NGSH_SERVICE_NAME=architecture NGSH_PORT=8088 $(PY) -m ngsh_architecture.app
 
+.PHONY: dev-workforce
+dev-workforce: ## Run the workforce service
+	NGSH_SERVICE_NAME=workforce NGSH_PORT=8089 $(PY) -m ngsh_workforce.app
+
+.PHONY: dev-manufacturing
+dev-manufacturing: ## Run the manufacturing service
+	NGSH_SERVICE_NAME=manufacturing NGSH_PORT=8090 $(PY) -m ngsh_manufacturing.app
+
+.PHONY: dev-testlab
+dev-testlab: ## Run the testlab service
+	NGSH_SERVICE_NAME=testlab NGSH_PORT=8091 $(PY) -m ngsh_testlab.app
+
+.PHONY: dev-supply
+dev-supply: ## Run the supply service
+	NGSH_SERVICE_NAME=supply NGSH_PORT=8092 $(PY) -m ngsh_supply.app
+
+.PHONY: dev-engagement
+dev-engagement: ## Run the engagement service
+	NGSH_SERVICE_NAME=engagement NGSH_PORT=8093 $(PY) -m ngsh_engagement.app
+
 .PHONY: demo
 demo: ## Exercise the full vertical slice against the running stack
 	$(PY) scripts/demo.py
+
+.PHONY: demo-programme
+demo-programme: ## Walk all six pillars in one thread against the running stack
+	$(PY) scripts/demo_programme.py
 
 .PHONY: demo-edge
 demo-edge: ## Exercise the edge annex capture and reconciliation flow

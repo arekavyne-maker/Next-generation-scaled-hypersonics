@@ -107,6 +107,16 @@ deploymentProfiles:
           replicaCount: 1
         web:
           replicaCount: 1
+        workforce:
+          replicaCount: 1
+        manufacturing:
+          replicaCount: 1
+        testlab:
+          replicaCount: 1
+        supply:
+          replicaCount: 1
+        engagement:
+          replicaCount: 1
 
     # -------------------------------------------------------------------------
     # il5 — accredited cloud enclave
@@ -218,6 +228,16 @@ deploymentProfiles:
             size: "20Gi"
         web:
           replicaCount: 2
+        workforce:
+          replicaCount: 2
+        manufacturing:
+          replicaCount: 2
+        testlab:
+          replicaCount: 2
+        supply:
+          replicaCount: 2
+        engagement:
+          replicaCount: 2
           autoscaling:
             enabled: false
 
@@ -326,6 +346,16 @@ deploymentProfiles:
             size: "50Gi"
         web:
           replicaCount: 1
+        workforce:
+          replicaCount: 1
+        manufacturing:
+          replicaCount: 1
+        testlab:
+          replicaCount: 1
+        supply:
+          replicaCount: 1
+        engagement:
+          replicaCount: 1
           podDisruptionBudget:
             # The console is not a data-plane service; a budget here would
             # block every node drain in the enclave.
@@ -428,6 +458,16 @@ deploymentProfiles:
             enabled: true
             size: "20Gi"
         web:
+          replicaCount: 1
+        workforce:
+          replicaCount: 1
+        manufacturing:
+          replicaCount: 1
+        testlab:
+          replicaCount: 1
+        supply:
+          replicaCount: 1
+        engagement:
           replicaCount: 1
 
 # -----------------------------------------------------------------------------
@@ -1014,6 +1054,366 @@ services:
     enabled: true
     name: "architecture-service"
     port: 8088
+    upstreams: ["fabric", "ontology", "thread"]
+    replicaCount: 1
+    image:
+      registry: ""
+      repository: "ngsh/architecture-service"
+      tag: ""
+      pullPolicy: ""
+    resources:
+      requests:
+        cpu: "200m"
+        memory: "512Mi"
+      limits:
+        cpu: "2"
+        memory: "2Gi"
+    probes:
+      liveness:
+        path: "/healthz"
+        initialDelaySeconds: 15
+        periodSeconds: 20
+        timeoutSeconds: 3
+        failureThreshold: 3
+      readiness:
+        path: "/readyz"
+        initialDelaySeconds: 5
+        periodSeconds: 10
+        timeoutSeconds: 3
+        failureThreshold: 3
+      startup:
+        path: "/healthz"
+        initialDelaySeconds: 10
+        periodSeconds: 5
+        failureThreshold: 30
+    env: []
+    envFrom: []
+    extraEnv: []
+    autoscaling:
+      enabled: null
+      minReplicas: null
+      maxReplicas: null
+      targetCPUUtilizationPercentage: null
+    podDisruptionBudget:
+      enabled: null
+      minAvailable: null
+      maxUnavailable: null
+    persistence:
+      enabled: null
+      size: null
+      storageClass: null
+      accessModes: null
+      existingClaim: null
+      mountPath: null
+    networkPolicy:
+      enabled: null
+      extraIngress: []
+      extraEgress: []
+    nodeSelector: {}
+    tolerations: []
+    affinity: {}
+    topologySpreadConstraints: []
+    podAnnotations: {}
+    podLabels: {}
+    extraVolumes: []
+    extraVolumeMounts: []
+    service:
+      type: ClusterIP
+      annotations: {}
+      labels: {}
+
+  workforce:
+    enabled: true
+    name: "workforce-service"
+    port: 8089
+    upstreams: ["fabric", "ontology", "thread"]
+    replicaCount: 1
+    image:
+      registry: ""
+      repository: "ngsh/architecture-service"
+      tag: ""
+      pullPolicy: ""
+    resources:
+      requests:
+        cpu: "200m"
+        memory: "512Mi"
+      limits:
+        cpu: "2"
+        memory: "2Gi"
+    probes:
+      liveness:
+        path: "/healthz"
+        initialDelaySeconds: 15
+        periodSeconds: 20
+        timeoutSeconds: 3
+        failureThreshold: 3
+      readiness:
+        path: "/readyz"
+        initialDelaySeconds: 5
+        periodSeconds: 10
+        timeoutSeconds: 3
+        failureThreshold: 3
+      startup:
+        path: "/healthz"
+        initialDelaySeconds: 10
+        periodSeconds: 5
+        failureThreshold: 30
+    env: []
+    envFrom: []
+    extraEnv: []
+    autoscaling:
+      enabled: null
+      minReplicas: null
+      maxReplicas: null
+      targetCPUUtilizationPercentage: null
+    podDisruptionBudget:
+      enabled: null
+      minAvailable: null
+      maxUnavailable: null
+    persistence:
+      enabled: null
+      size: null
+      storageClass: null
+      accessModes: null
+      existingClaim: null
+      mountPath: null
+    networkPolicy:
+      enabled: null
+      extraIngress: []
+      extraEgress: []
+    nodeSelector: {}
+    tolerations: []
+    affinity: {}
+    topologySpreadConstraints: []
+    podAnnotations: {}
+    podLabels: {}
+    extraVolumes: []
+    extraVolumeMounts: []
+    service:
+      type: ClusterIP
+      annotations: {}
+      labels: {}
+
+  manufacturing:
+    enabled: true
+    name: "manufacturing-service"
+    port: 8090
+    upstreams: ["fabric", "ontology", "thread", "workforce"]
+    replicaCount: 1
+    image:
+      registry: ""
+      repository: "ngsh/architecture-service"
+      tag: ""
+      pullPolicy: ""
+    resources:
+      requests:
+        cpu: "200m"
+        memory: "512Mi"
+      limits:
+        cpu: "2"
+        memory: "2Gi"
+    probes:
+      liveness:
+        path: "/healthz"
+        initialDelaySeconds: 15
+        periodSeconds: 20
+        timeoutSeconds: 3
+        failureThreshold: 3
+      readiness:
+        path: "/readyz"
+        initialDelaySeconds: 5
+        periodSeconds: 10
+        timeoutSeconds: 3
+        failureThreshold: 3
+      startup:
+        path: "/healthz"
+        initialDelaySeconds: 10
+        periodSeconds: 5
+        failureThreshold: 30
+    env: []
+    envFrom: []
+    extraEnv: []
+    autoscaling:
+      enabled: null
+      minReplicas: null
+      maxReplicas: null
+      targetCPUUtilizationPercentage: null
+    podDisruptionBudget:
+      enabled: null
+      minAvailable: null
+      maxUnavailable: null
+    persistence:
+      enabled: null
+      size: null
+      storageClass: null
+      accessModes: null
+      existingClaim: null
+      mountPath: null
+    networkPolicy:
+      enabled: null
+      extraIngress: []
+      extraEgress: []
+    nodeSelector: {}
+    tolerations: []
+    affinity: {}
+    topologySpreadConstraints: []
+    podAnnotations: {}
+    podLabels: {}
+    extraVolumes: []
+    extraVolumeMounts: []
+    service:
+      type: ClusterIP
+      annotations: {}
+      labels: {}
+
+  testlab:
+    enabled: true
+    name: "testlab-service"
+    port: 8091
+    upstreams: ["fabric", "ontology", "thread", "architecture"]
+    replicaCount: 1
+    image:
+      registry: ""
+      repository: "ngsh/architecture-service"
+      tag: ""
+      pullPolicy: ""
+    resources:
+      requests:
+        cpu: "200m"
+        memory: "512Mi"
+      limits:
+        cpu: "2"
+        memory: "2Gi"
+    probes:
+      liveness:
+        path: "/healthz"
+        initialDelaySeconds: 15
+        periodSeconds: 20
+        timeoutSeconds: 3
+        failureThreshold: 3
+      readiness:
+        path: "/readyz"
+        initialDelaySeconds: 5
+        periodSeconds: 10
+        timeoutSeconds: 3
+        failureThreshold: 3
+      startup:
+        path: "/healthz"
+        initialDelaySeconds: 10
+        periodSeconds: 5
+        failureThreshold: 30
+    env: []
+    envFrom: []
+    extraEnv: []
+    autoscaling:
+      enabled: null
+      minReplicas: null
+      maxReplicas: null
+      targetCPUUtilizationPercentage: null
+    podDisruptionBudget:
+      enabled: null
+      minAvailable: null
+      maxUnavailable: null
+    persistence:
+      enabled: null
+      size: null
+      storageClass: null
+      accessModes: null
+      existingClaim: null
+      mountPath: null
+    networkPolicy:
+      enabled: null
+      extraIngress: []
+      extraEgress: []
+    nodeSelector: {}
+    tolerations: []
+    affinity: {}
+    topologySpreadConstraints: []
+    podAnnotations: {}
+    podLabels: {}
+    extraVolumes: []
+    extraVolumeMounts: []
+    service:
+      type: ClusterIP
+      annotations: {}
+      labels: {}
+
+  supply:
+    enabled: true
+    name: "supply-service"
+    port: 8092
+    upstreams: ["fabric", "ontology", "thread"]
+    replicaCount: 1
+    image:
+      registry: ""
+      repository: "ngsh/architecture-service"
+      tag: ""
+      pullPolicy: ""
+    resources:
+      requests:
+        cpu: "200m"
+        memory: "512Mi"
+      limits:
+        cpu: "2"
+        memory: "2Gi"
+    probes:
+      liveness:
+        path: "/healthz"
+        initialDelaySeconds: 15
+        periodSeconds: 20
+        timeoutSeconds: 3
+        failureThreshold: 3
+      readiness:
+        path: "/readyz"
+        initialDelaySeconds: 5
+        periodSeconds: 10
+        timeoutSeconds: 3
+        failureThreshold: 3
+      startup:
+        path: "/healthz"
+        initialDelaySeconds: 10
+        periodSeconds: 5
+        failureThreshold: 30
+    env: []
+    envFrom: []
+    extraEnv: []
+    autoscaling:
+      enabled: null
+      minReplicas: null
+      maxReplicas: null
+      targetCPUUtilizationPercentage: null
+    podDisruptionBudget:
+      enabled: null
+      minAvailable: null
+      maxUnavailable: null
+    persistence:
+      enabled: null
+      size: null
+      storageClass: null
+      accessModes: null
+      existingClaim: null
+      mountPath: null
+    networkPolicy:
+      enabled: null
+      extraIngress: []
+      extraEgress: []
+    nodeSelector: {}
+    tolerations: []
+    affinity: {}
+    topologySpreadConstraints: []
+    podAnnotations: {}
+    podLabels: {}
+    extraVolumes: []
+    extraVolumeMounts: []
+    service:
+      type: ClusterIP
+      annotations: {}
+      labels: {}
+
+  engagement:
+    enabled: true
+    name: "engagement-service"
+    port: 8093
     upstreams: ["fabric", "ontology", "thread"]
     replicaCount: 1
     image:

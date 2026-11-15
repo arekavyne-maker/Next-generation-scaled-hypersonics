@@ -134,7 +134,7 @@
           "type": "array",
           "items": {
             "type": "string",
-            "enum": ["ontology", "fabric", "policy", "audit", "thread", "ingest", "web"]
+            "enum": ["ontology", "fabric", "policy", "audit", "thread", "ingest", "architecture", "workforce", "manufacturing", "testlab", "supply", "engagement", "web"]
           }
         },
         "replicaCount": { "type": "integer", "minimum": 0 },
@@ -314,6 +314,11 @@
             "thread": { "$ref": "#/definitions/profileServiceOverlay" },
             "ingest": { "$ref": "#/definitions/profileServiceOverlay" },
             "architecture": { "$ref": "#/definitions/profileServiceOverlay" },
+            "workforce": { "$ref": "#/definitions/profileServiceOverlay" },
+            "manufacturing": { "$ref": "#/definitions/profileServiceOverlay" },
+            "testlab": { "$ref": "#/definitions/profileServiceOverlay" },
+            "supply": { "$ref": "#/definitions/profileServiceOverlay" },
+            "engagement": { "$ref": "#/definitions/profileServiceOverlay" },
             "web": { "$ref": "#/definitions/profileServiceOverlay" }
           }
         }
@@ -457,7 +462,7 @@
                     "pathType": { "type": "string", "enum": ["Exact", "Prefix", "ImplementationSpecific"] },
                     "service": {
                       "type": "string",
-                      "enum": ["ontology", "fabric", "policy", "audit", "thread", "ingest", "web"]
+                      "enum": ["ontology", "fabric", "policy", "audit", "thread", "ingest", "architecture", "workforce", "manufacturing", "testlab", "supply", "engagement", "web"]
                     }
                   }
                 }
@@ -571,7 +576,7 @@
         "image": { "$ref": "#/definitions/image" },
         "service": {
           "type": "string",
-          "enum": ["ontology", "fabric", "policy", "audit", "thread", "ingest", "web"]
+          "enum": ["ontology", "fabric", "policy", "audit", "thread", "ingest", "architecture", "workforce", "manufacturing", "testlab", "supply", "engagement", "web"]
         },
         "path": { "type": "string", "pattern": "^/" },
         "timeoutSeconds": { "type": "integer", "minimum": 1 }
@@ -580,7 +585,7 @@
     "services": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["ontology", "fabric", "policy", "audit", "thread", "ingest", "architecture", "web"],
+      "required": ["ontology", "fabric", "policy", "audit", "thread", "ingest", "architecture", "workforce", "manufacturing", "testlab", "supply", "engagement", "web"],
       "properties": {
         "ontology": { "$ref": "#/definitions/service" },
         "fabric": { "$ref": "#/definitions/service" },
@@ -589,6 +594,11 @@
         "thread": { "$ref": "#/definitions/service" },
         "ingest": { "$ref": "#/definitions/service" },
         "architecture": { "$ref": "#/definitions/service" },
+        "workforce": { "$ref": "#/definitions/service" },
+        "manufacturing": { "$ref": "#/definitions/service" },
+        "testlab": { "$ref": "#/definitions/service" },
+        "supply": { "$ref": "#/definitions/service" },
+        "engagement": { "$ref": "#/definitions/service" },
         "web": { "$ref": "#/definitions/service" }
       }
     }

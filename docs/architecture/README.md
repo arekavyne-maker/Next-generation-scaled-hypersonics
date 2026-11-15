@@ -14,6 +14,7 @@ This directory holds the architecture documentation for the NGSH platform. Where
 | [`04-security-architecture.md`](04-security-architecture.md) | Zero-trust posture, the attribute model, PDP/PEP topology, physical partitioning, identity and clearance verification, the audit trail, key management, the trust-boundary diagram, accreditation boundaries, SBOM and CMMC L2+ obligations | Security engineers; the security office; assessors; anyone adding a service or a data path |
 | [`05-deployment-architecture.md`](05-deployment-architecture.md) | The three zones, the four deployment profiles, capability declarations, the reconciliation path, the degraded-mode behaviour table, configuration and promotion | Platform and SRE engineers; field and range operators; programme management |
 | [`06-pillar-a-first-slice.md`](06-pillar-a-first-slice.md) | What Increment 1's Pillar A slice delivers: content-addressed configuration baselines, the interface registry, requirement traceability and rollup, and an explicit list of what is not yet delivered | Pillar engineers building on A-1/A-3; assessors checking the first slice against its acceptance criteria |
+| [`07-pillar-coverage.md`](07-pillar-coverage.md) | The six pillar services, their capabilities and rules, what each deliberately does not deliver, and the programme traversal that ties every pillar into one thread | Pillar engineers; programme management; assessors reviewing increments 1–5 |
 
 ## Reading order
 

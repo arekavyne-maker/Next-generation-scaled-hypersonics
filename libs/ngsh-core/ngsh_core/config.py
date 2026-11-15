@@ -112,6 +112,16 @@ class Settings:
     ontology_url: str = field(default_factory=lambda: _env("NGSH_ONTOLOGY_URL", ""))
     thread_url: str = field(default_factory=lambda: _env("NGSH_THREAD_URL", ""))
 
+    #: Citizenships permitted to hold a credential for export-controlled
+    #: activity (C-005). The default is restrictive on purpose.
+    permitted_citizenships: tuple[str, ...] = field(
+        default_factory=lambda: tuple(
+            item.strip().upper()
+            for item in _env("NGSH_PERMITTED_CITIZENSHIPS", "US").split(",")
+            if item.strip()
+        )
+    )
+
     @property
     def contracts_dir(self) -> Path:
         return repo_root() / "contracts"

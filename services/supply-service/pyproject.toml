@@ -1,0 +1,21 @@
+[project]
+name = "ngsh-supply-service"
+version = "0.1.0"
+description = "Pillar D: supply risk, surge and reconstitution."
+requires-python = ">=3.12"
+license = { text = "Proprietary" }
+dependencies = ["ngsh-core"]
+
+[project.scripts]
+ngsh-supply-service = "ngsh_supply.app:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/ngsh_supply"]
+
+[tool.ruff]
+extend = "../../pyproject.toml"
+extend-exclude = ["**/generated/**"]

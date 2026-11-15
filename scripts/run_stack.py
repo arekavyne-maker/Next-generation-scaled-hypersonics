@@ -32,6 +32,11 @@ SERVICES: list[tuple[str, str, int]] = [
     ("thread", "ngsh_thread.app:create_app", 8085),
     ("ingest", "ngsh_ingest.app:create_app", 8086),
     ("architecture", "ngsh_architecture.app:create_app", 8088),
+    ("workforce", "ngsh_workforce.app:create_app", 8089),
+    ("manufacturing", "ngsh_manufacturing.app:create_app", 8090),
+    ("testlab", "ngsh_testlab.app:create_app", 8091),
+    ("supply", "ngsh_supply.app:create_app", 8092),
+    ("engagement", "ngsh_engagement.app:create_app", 8093),
 ]
 
 

@@ -13,6 +13,11 @@ dependencies = [
     "ngsh-thread-service",
     "ngsh-ingest-service",
     "ngsh-architecture-service",
+    "ngsh-workforce-service",
+    "ngsh-manufacturing-service",
+    "ngsh-testlab-service",
+    "ngsh-supply-service",
+    "ngsh-engagement-service",
     "ngsh-edge-agent",
 ]
 
@@ -26,6 +31,11 @@ members = [
     "services/thread-service",
     "services/ingest-service",
     "services/architecture-service",
+    "services/workforce-service",
+    "services/manufacturing-service",
+    "services/testlab-service",
+    "services/supply-service",
+    "services/engagement-service",
     "apps/edge-agent",
 ]
 
@@ -38,6 +48,11 @@ ngsh-audit-service = { workspace = true }
 ngsh-thread-service = { workspace = true }
 ngsh-ingest-service = { workspace = true }
 ngsh-architecture-service = { workspace = true }
+ngsh-workforce-service = { workspace = true }
+ngsh-manufacturing-service = { workspace = true }
+ngsh-testlab-service = { workspace = true }
+ngsh-supply-service = { workspace = true }
+ngsh-engagement-service = { workspace = true }
 ngsh-edge-agent = { workspace = true }
 
 [dependency-groups]
@@ -62,6 +77,11 @@ pythonpath = [
     "services/thread-service/src",
     "services/ingest-service/src",
     "services/architecture-service/src",
+    "services/workforce-service/src",
+    "services/manufacturing-service/src",
+    "services/testlab-service/src",
+    "services/supply-service/src",
+    "services/engagement-service/src",
 ]
 addopts = "-q --strict-markers"
 asyncio_default_fixture_loop_scope = "function"

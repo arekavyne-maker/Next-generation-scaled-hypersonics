@@ -85,8 +85,9 @@ Requires [uv](https://docs.astral.sh/uv/) and Python 3.12+. No Docker needed.
 ```bash
 make setup          # install dependencies
 make verify         # lint + contract validation + full test suite
-make dev            # run the foundation plus the Pillar A slice
+make dev            # run the twelve-service platform
 make demo           # in another terminal: walk the foundation end to end
+make demo-programme # in another terminal: walk all six pillars in one thread
 make demo-edge      # in another terminal: walk the edge annex flow
 ```
 
@@ -105,7 +106,12 @@ evidence, take a policy decision, and verify the audit chain.
 | audit | 8084 | The tamper-evident, hash-chained ledger |
 | thread | 8085 | The digital thread projection and its traversal queries |
 | ingest | 8086 | Bulk admission of test, telemetry and manufacturing data |
-| architecture | 8088 | Pillar A first slice: configuration baselines, interface registry, requirement traceability |
+| architecture | 8088 | Pillar A: configuration baselines, interface registry, requirement traceability |
+| workforce | 8089 | Pillar E: skills, credentials, work authorisation and the cleared-workforce gap |
+| manufacturing | 8090 | Pillar B: travellers, process runs, genealogy, drift and rate |
+| testlab | 8091 | Pillar C: campaigns, configuration-gated results, anomalies and the twin loop |
+| supply | 8092 | Pillar D: single-source exposure (C-007), surge and reconstitution |
+| engagement | 8093 | Pillars F and G: threats, scenarios, engagement batches and range slots |
 
 Every service exposes `/healthz`, `/readyz`, `/v1/service/info` and OpenAPI
 at `/docs`.
@@ -127,7 +133,7 @@ contracts/            The contract layer — JSON Schema, registry, policy, even
 
 libs/ngsh-core/       Shared domain primitives: envelope, ontology, policy,
                       audit, event log, projection, identity, storage
-services/             Foundation services and the Pillar A first slice, each independently deployable
+services/             Foundation and pillar services, each independently deployable
 apps/web/             The engineering console
 apps/edge-agent/      The edge annex agent (degraded mode, reconciliation)
 tests/                unit · integration · e2e · contract parity

@@ -474,7 +474,26 @@ PSDD §11 states: "Each phase yields a standalone, revenue-capable product (risk
 
 **The licence boundary.** A pillar licensed standalone receives the contract layer, the foundation services it depends on, and its own projections. It does not receive the graph projection of a pillar it does not license, and it reaches upstream data through the event feed. This is what makes the independence claim real rather than a packaging exercise.
 
-## 12. References
+## 12. Implementation status in this repository
+
+The repository contains a working reference implementation of the platform and
+of all six pillars. That is not the same thing as an increment exit. The table
+separates what is runnable today from what still requires an institution, a
+range or a production dataset.
+
+| Increment | Runnable now | Exit still depends on |
+|---|---|---|
+| 0 Foundation | Six foundation services, contract layer, audit chain, edge annex, projection rebuild | PostgreSQL runtime exercise, accredited identity provider |
+| 1 Workforce and Pillar A slice | A-1/A-3 baseline and traceability; E-3/E-4 credentialing and demand gap | Partner institutions, curriculum delivery, live training records |
+| 2 Manufacturing and test data | B traveller/genealogy/drift/rate; C campaign, admission, anomaly, twin loop | Prime PLM/MES access, AR/VR test cell, range instrumentation |
+| 3 Supply chain and surge | D single-source exposure (C-007), surge and reconstitution | Supplier portal integration, contract and pricing data |
+| 4 Kill chain and virtual range | F deterministic batches and kill chain; G range slots | PSDD IF-3 outbound to SDA/PWSA, high-fidelity threat models |
+| 5 Full stack and flight demonstration | All pillar services share one log and one traversal (`tests/e2e/test_programme_traversal.py`, `make demo-programme`) | Classified production demand, the 2027 validation event, full capability verification |
+
+Details and per-pillar "not delivered" tables are in
+[`../architecture/07-pillar-coverage.md`](../architecture/07-pillar-coverage.md).
+
+## 13. References
 
 **PSDD:** §5.1–§5.8 (the pillar capability ids referenced throughout), §7 (IF-1..IF-7), §8 (non-functional requirements and the Modularity requirement), §9 (AI/ML), §11 (phasing, the 2027 Maverick validation event, and the standalone-product rule), §12 (KPIs), §13 (risks), §14 (teaming strategy).
 

@@ -537,6 +537,228 @@ services:
       retries: 12
       start_period: 20s
 
+  workforce-service:
+    <<: *ngsh-service-base
+    image: ${NGSH_WORKFORCE_IMAGE:-ngsh/workforce-service:dev}
+    build:
+      context: ../../
+      dockerfile: services/workforce-service/Dockerfile
+      args:
+        SERVICE_NAME: workforce-service
+    container_name: ngsh-workforce-service
+    environment:
+      <<: *ngsh-common-env
+      NGSH_SERVICE_NAME: workforce-service
+      PORT: "8089"
+      NGSH_PORT: "8089"
+      NGSH_DATA_DIR: /var/lib/ngsh/workforce
+      NGSH_FABRIC_URL: "http://fabric-service:8082"
+      NGSH_ONTOLOGY_URL: "http://ontology-service:8081"
+      NGSH_THREAD_URL: "http://thread-service:8085"
+    volumes:
+      - ngsh-data:/var/lib/ngsh/platform
+      - ngsh-workforce-data:/var/lib/ngsh/workforce
+    ports:
+      - target: 8089
+        published: "${WORKFORCE_HOST_PORT:-8089}"
+        protocol: tcp
+        mode: host
+    depends_on:
+      init-data:
+        condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
+      fabric-service:
+        condition: service_healthy
+      ontology-service:
+        condition: service_healthy
+      thread-service:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8089/healthz >/dev/null || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+
+  manufacturing-service:
+    <<: *ngsh-service-base
+    image: ${NGSH_MANUFACTURING_IMAGE:-ngsh/manufacturing-service:dev}
+    build:
+      context: ../../
+      dockerfile: services/manufacturing-service/Dockerfile
+      args:
+        SERVICE_NAME: manufacturing-service
+    container_name: ngsh-manufacturing-service
+    environment:
+      <<: *ngsh-common-env
+      NGSH_SERVICE_NAME: manufacturing-service
+      PORT: "8090"
+      NGSH_PORT: "8090"
+      NGSH_DATA_DIR: /var/lib/ngsh/manufacturing
+      NGSH_FABRIC_URL: "http://fabric-service:8082"
+      NGSH_ONTOLOGY_URL: "http://ontology-service:8081"
+      NGSH_THREAD_URL: "http://thread-service:8085"
+      NGSH_WORKFORCE_URL: "http://workforce-service:8089"
+    volumes:
+      - ngsh-data:/var/lib/ngsh/platform
+      - ngsh-manufacturing-data:/var/lib/ngsh/manufacturing
+    ports:
+      - target: 8090
+        published: "${MANUFACTURING_HOST_PORT:-8090}"
+        protocol: tcp
+        mode: host
+    depends_on:
+      init-data:
+        condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
+      fabric-service:
+        condition: service_healthy
+      ontology-service:
+        condition: service_healthy
+      thread-service:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8090/healthz >/dev/null || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+
+  testlab-service:
+    <<: *ngsh-service-base
+    image: ${NGSH_TESTLAB_IMAGE:-ngsh/testlab-service:dev}
+    build:
+      context: ../../
+      dockerfile: services/testlab-service/Dockerfile
+      args:
+        SERVICE_NAME: testlab-service
+    container_name: ngsh-testlab-service
+    environment:
+      <<: *ngsh-common-env
+      NGSH_SERVICE_NAME: testlab-service
+      PORT: "8091"
+      NGSH_PORT: "8091"
+      NGSH_DATA_DIR: /var/lib/ngsh/testlab
+      NGSH_FABRIC_URL: "http://fabric-service:8082"
+      NGSH_ONTOLOGY_URL: "http://ontology-service:8081"
+      NGSH_THREAD_URL: "http://thread-service:8085"
+      NGSH_ARCHITECTURE_URL: "http://architecture-service:8088"
+    volumes:
+      - ngsh-data:/var/lib/ngsh/platform
+      - ngsh-testlab-data:/var/lib/ngsh/testlab
+    ports:
+      - target: 8091
+        published: "${TESTLAB_HOST_PORT:-8091}"
+        protocol: tcp
+        mode: host
+    depends_on:
+      init-data:
+        condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
+      fabric-service:
+        condition: service_healthy
+      ontology-service:
+        condition: service_healthy
+      thread-service:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8091/healthz >/dev/null || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+
+  supply-service:
+    <<: *ngsh-service-base
+    image: ${NGSH_SUPPLY_IMAGE:-ngsh/supply-service:dev}
+    build:
+      context: ../../
+      dockerfile: services/supply-service/Dockerfile
+      args:
+        SERVICE_NAME: supply-service
+    container_name: ngsh-supply-service
+    environment:
+      <<: *ngsh-common-env
+      NGSH_SERVICE_NAME: supply-service
+      PORT: "8092"
+      NGSH_PORT: "8092"
+      NGSH_DATA_DIR: /var/lib/ngsh/supply
+      NGSH_FABRIC_URL: "http://fabric-service:8082"
+      NGSH_ONTOLOGY_URL: "http://ontology-service:8081"
+      NGSH_THREAD_URL: "http://thread-service:8085"
+    volumes:
+      - ngsh-data:/var/lib/ngsh/platform
+      - ngsh-supply-data:/var/lib/ngsh/supply
+    ports:
+      - target: 8092
+        published: "${SUPPLY_HOST_PORT:-8092}"
+        protocol: tcp
+        mode: host
+    depends_on:
+      init-data:
+        condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
+      fabric-service:
+        condition: service_healthy
+      ontology-service:
+        condition: service_healthy
+      thread-service:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8092/healthz >/dev/null || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+
+  engagement-service:
+    <<: *ngsh-service-base
+    image: ${NGSH_ENGAGEMENT_IMAGE:-ngsh/engagement-service:dev}
+    build:
+      context: ../../
+      dockerfile: services/engagement-service/Dockerfile
+      args:
+        SERVICE_NAME: engagement-service
+    container_name: ngsh-engagement-service
+    environment:
+      <<: *ngsh-common-env
+      NGSH_SERVICE_NAME: engagement-service
+      PORT: "8093"
+      NGSH_PORT: "8093"
+      NGSH_DATA_DIR: /var/lib/ngsh/engagement
+      NGSH_FABRIC_URL: "http://fabric-service:8082"
+      NGSH_ONTOLOGY_URL: "http://ontology-service:8081"
+      NGSH_THREAD_URL: "http://thread-service:8085"
+    volumes:
+      - ngsh-data:/var/lib/ngsh/platform
+      - ngsh-engagement-data:/var/lib/ngsh/engagement
+    ports:
+      - target: 8093
+        published: "${ENGAGEMENT_HOST_PORT:-8093}"
+        protocol: tcp
+        mode: host
+    depends_on:
+      init-data:
+        condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
+      fabric-service:
+        condition: service_healthy
+      ontology-service:
+        condition: service_healthy
+      thread-service:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8093/healthz >/dev/null || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+
   ingest-service:
     <<: *ngsh-service-base
     image: ${NGSH_INGEST_IMAGE:-ngsh/ingest-service:dev}
@@ -769,6 +991,16 @@ volumes:
     name: ngsh-ingest-data
   ngsh-architecture-data:
     name: ngsh-architecture-data
+  ngsh-workforce-data:
+    name: ngsh-workforce-data
+  ngsh-manufacturing-data:
+    name: ngsh-manufacturing-data
+  ngsh-testlab-data:
+    name: ngsh-testlab-data
+  ngsh-supply-data:
+    name: ngsh-supply-data
+  ngsh-engagement-data:
+    name: ngsh-engagement-data
   ngsh-edge-data:
     name: ngsh-edge-data
   ngsh-edge-fabric-data:

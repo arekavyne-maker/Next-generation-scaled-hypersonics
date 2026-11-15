@@ -9,11 +9,16 @@ members = [
     "ngsh-audit-service",
     "ngsh-core",
     "ngsh-edge-agent",
+    "ngsh-engagement-service",
     "ngsh-fabric-service",
     "ngsh-ingest-service",
+    "ngsh-manufacturing-service",
     "ngsh-ontology-service",
     "ngsh-policy-service",
+    "ngsh-supply-service",
+    "ngsh-testlab-service",
     "ngsh-thread-service",
+    "ngsh-workforce-service",
 ]
 
 [[package]]
@@ -389,11 +394,16 @@ dependencies = [
     { name = "ngsh-audit-service" },
     { name = "ngsh-core" },
     { name = "ngsh-edge-agent" },
+    { name = "ngsh-engagement-service" },
     { name = "ngsh-fabric-service" },
     { name = "ngsh-ingest-service" },
+    { name = "ngsh-manufacturing-service" },
     { name = "ngsh-ontology-service" },
     { name = "ngsh-policy-service" },
+    { name = "ngsh-supply-service" },
+    { name = "ngsh-testlab-service" },
     { name = "ngsh-thread-service" },
+    { name = "ngsh-workforce-service" },
 ]
 
 [package.dev-dependencies]
@@ -413,11 +423,16 @@ requires-dist = [
     { name = "ngsh-audit-service", editable = "services/audit-service" },
     { name = "ngsh-core", editable = "libs/ngsh-core" },
     { name = "ngsh-edge-agent", editable = "apps/edge-agent" },
+    { name = "ngsh-engagement-service", editable = "services/engagement-service" },
     { name = "ngsh-fabric-service", editable = "services/fabric-service" },
     { name = "ngsh-ingest-service", editable = "services/ingest-service" },
+    { name = "ngsh-manufacturing-service", editable = "services/manufacturing-service" },
     { name = "ngsh-ontology-service", editable = "services/ontology-service" },
     { name = "ngsh-policy-service", editable = "services/policy-service" },
+    { name = "ngsh-supply-service", editable = "services/supply-service" },
+    { name = "ngsh-testlab-service", editable = "services/testlab-service" },
     { name = "ngsh-thread-service", editable = "services/thread-service" },
+    { name = "ngsh-workforce-service", editable = "services/workforce-service" },
 ]
 
 [package.metadata.requires-dev]
@@ -501,6 +516,17 @@ dependencies = [
 requires-dist = [{ name = "ngsh-core", editable = "libs/ngsh-core" }]
 
 [[package]]
+name = "ngsh-engagement-service"
+version = "0.1.0"
+source = { editable = "services/engagement-service" }
+dependencies = [
+    { name = "ngsh-core" },
+]
+
+[package.metadata]
+requires-dist = [{ name = "ngsh-core", editable = "libs/ngsh-core" }]
+
+[[package]]
 name = "ngsh-fabric-service"
 version = "0.1.0"
 source = { editable = "services/fabric-service" }
@@ -515,6 +541,17 @@ requires-dist = [{ name = "ngsh-core", editable = "libs/ngsh-core" }]
 name = "ngsh-ingest-service"
 version = "0.1.0"
 source = { editable = "services/ingest-service" }
+dependencies = [
+    { name = "ngsh-core" },
+]
+
+[package.metadata]
+requires-dist = [{ name = "ngsh-core", editable = "libs/ngsh-core" }]
+
+[[package]]
+name = "ngsh-manufacturing-service"
+version = "0.1.0"
+source = { editable = "services/manufacturing-service" }
 dependencies = [
     { name = "ngsh-core" },
 ]
@@ -545,9 +582,42 @@ dependencies = [
 requires-dist = [{ name = "ngsh-core", editable = "libs/ngsh-core" }]
 
 [[package]]
+name = "ngsh-supply-service"
+version = "0.1.0"
+source = { editable = "services/supply-service" }
+dependencies = [
+    { name = "ngsh-core" },
+]
+
+[package.metadata]
+requires-dist = [{ name = "ngsh-core", editable = "libs/ngsh-core" }]
+
+[[package]]
+name = "ngsh-testlab-service"
+version = "0.1.0"
+source = { editable = "services/testlab-service" }
+dependencies = [
+    { name = "ngsh-core" },
+]
+
+[package.metadata]
+requires-dist = [{ name = "ngsh-core", editable = "libs/ngsh-core" }]
+
+[[package]]
 name = "ngsh-thread-service"
 version = "0.1.0"
 source = { editable = "services/thread-service" }
+dependencies = [
+    { name = "ngsh-core" },
+]
+
+[package.metadata]
+requires-dist = [{ name = "ngsh-core", editable = "libs/ngsh-core" }]
+
+[[package]]
+name = "ngsh-workforce-service"
+version = "0.1.0"
+source = { editable = "services/workforce-service" }
 dependencies = [
     { name = "ngsh-core" },
 ]

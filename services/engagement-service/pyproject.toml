@@ -1,0 +1,21 @@
+[project]
+name = "ngsh-engagement-service"
+version = "0.1.0"
+description = "Pillars F and G: threat engagement, kill chain and the virtual range."
+requires-python = ">=3.12"
+license = { text = "Proprietary" }
+dependencies = ["ngsh-core"]
+
+[project.scripts]
+ngsh-engagement-service = "ngsh_engagement.app:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/ngsh_engagement"]
+
+[tool.ruff]
+extend = "../../pyproject.toml"
+extend-exclude = ["**/generated/**"]
