@@ -13,6 +13,11 @@ dependencies = [
     "uvicorn[standard]>=0.30",
     "httpx>=0.27",
     "python-multipart>=0.0.9",
+    # The PostgreSQL driver is a runtime dependency, not an optional extra.
+    # The platform's claim is that the same image runs in an accredited
+    # enclave, where the datastore is PostgreSQL; a driver that is absent
+    # from the image would make that claim false at boot.
+    "psycopg[binary]>=3.2",
 ]
 
 [project.optional-dependencies]

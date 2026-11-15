@@ -44,6 +44,8 @@ dev = [
     "pytest-cov>=5.0",
     "ruff>=0.5",
     "jsonschema>=4.22",
+    "pglast>=7",
+    "psycopg[binary]>=3.2",
 ]
 
 [tool.pytest.ini_options]

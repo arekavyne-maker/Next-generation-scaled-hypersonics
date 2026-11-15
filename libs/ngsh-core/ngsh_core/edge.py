@@ -27,7 +27,6 @@ local appliance is a site configuration option, not a platform default
 from __future__ import annotations
 
 import json
-import sqlite3
 import threading
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
@@ -37,7 +36,7 @@ from typing import Any
 
 from .envelope import EventEnvelope, utcnow
 from .ids import new_ulid
-from .store import canonical_json
+from .store import SqliteExecutor, canonical_json, open_database
 
 #: Queue priorities, highest first. Used to decide what survives an
 #: overflow. The ordering is domain policy: the ADR records that the
@@ -123,59 +122,82 @@ class EdgeQueue:
     The queue is local to the edge node and holds its own sequence space per
     aggregate, independent of the fabric's global sequence space (ADR-0006,
     rule S-1).
+
+    It is backed by the same storage executor as the rest of the platform, so
+    an edge annex running SQLite and an edge annex running PostgreSQL are the
+    same code. The queue is the node's own buffer, never a shared store.
     """
 
-    def __init__(self, path: Path | str, *, capacity: int = 10_000, node_id: str = "edge:unknown") -> None:
+    def __init__(
+        self,
+        path: Path | str,
+        *,
+        capacity: int = 10_000,
+        node_id: str = "edge:unknown",
+        dsn: str | None = None,
+    ) -> None:
         self.node_id = node_id
-        self._path = str(path)
-        if self._path != ":memory:":
-            Path(self._path).parent.mkdir(parents=True, exist_ok=True)
         self._capacity = capacity
         self._lock = threading.RLock()
-        self._conn = sqlite3.connect(self._path, check_same_thread=False)
-        self._conn.row_factory = sqlite3.Row
-        self._conn.execute("PRAGMA journal_mode=WAL")
-        self._conn.execute("PRAGMA busy_timeout=5000")
+
+        if dsn:
+            self._db = open_database(dsn)
+        else:
+            raw = str(path)
+            if raw != ":memory:":
+                Path(raw).parent.mkdir(parents=True, exist_ok=True)
+            self._db = SqliteExecutor(raw)
+
         self._bootstrap()
 
     def _bootstrap(self) -> None:
-        self._conn.executescript(
-            """
+        pk = self._db.dialect.serial_pk
+        statements = (
+            f"""
             CREATE TABLE IF NOT EXISTS edge_queue (
-                local_sequence   INTEGER PRIMARY KEY AUTOINCREMENT,
-                aggregate_id     TEXT NOT NULL,
-                event_id         TEXT NOT NULL UNIQUE,
-                event_type       TEXT NOT NULL,
-                priority         INTEGER NOT NULL,
-                captured_at      TEXT NOT NULL,
+                local_sequence    {pk},
+                aggregate_id      TEXT NOT NULL,
+                event_id          TEXT NOT NULL UNIQUE,
+                event_type        TEXT NOT NULL,
+                priority          INTEGER NOT NULL,
+                captured_at       TEXT NOT NULL,
                 branched_from_seq INTEGER NOT NULL DEFAULT 0,
                 aggregate_local_seq INTEGER NOT NULL,
-                envelope_json    TEXT NOT NULL,
-                acknowledged     INTEGER NOT NULL DEFAULT 0,
-                quarantined      INTEGER NOT NULL DEFAULT 0,
+                envelope_json     TEXT NOT NULL,
+                acknowledged      INTEGER NOT NULL DEFAULT 0,
+                quarantined       INTEGER NOT NULL DEFAULT 0,
                 quarantine_reason TEXT
-            );
-            CREATE INDEX IF NOT EXISTS idx_edge_queue_pending
-                ON edge_queue (acknowledged, quarantined, aggregate_id, aggregate_local_seq);
+            )
+            """,
+            "CREATE INDEX IF NOT EXISTS idx_edge_queue_pending "
+            "ON edge_queue (acknowledged, quarantined, aggregate_id, aggregate_local_seq)",
+            """
             CREATE TABLE IF NOT EXISTS edge_local_sequence (
                 aggregate_id TEXT PRIMARY KEY,
                 last_local_seq INTEGER NOT NULL
-            );
+            )
+            """,
+            """
             CREATE TABLE IF NOT EXISTS edge_branch (
                 aggregate_id TEXT PRIMARY KEY,
                 last_known_fabric_seq INTEGER NOT NULL DEFAULT 0
-            );
+            )
+            """,
+            """
             CREATE TABLE IF NOT EXISTS edge_drops (
                 event_id TEXT PRIMARY KEY,
                 body_json TEXT NOT NULL
-            );
+            )
+            """,
+            """
             CREATE TABLE IF NOT EXISTS edge_state (
                 key TEXT PRIMARY KEY,
                 value TEXT NOT NULL
-            );
-            """
+            )
+            """,
         )
-        self._conn.commit()
+        for statement in statements:
+            self._db.execute(statement)
 
     # -- writing ---------------------------------------------------------
 
@@ -208,7 +230,7 @@ class EdgeQueue:
                 envelope=stamped,
             )
 
-            self._conn.execute(
+            self._db.execute(
                 "INSERT INTO edge_queue (aggregate_id, event_id, event_type, priority, captured_at, "
                 "branched_from_seq, aggregate_local_seq, envelope_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
                 (
@@ -222,40 +244,36 @@ class EdgeQueue:
                     canonical_json(stamped.to_logical_json()),
                 ),
             )
-            self._conn.execute(
+            self._db.execute(
                 "INSERT INTO edge_local_sequence (aggregate_id, last_local_seq) VALUES (?, ?) "
                 "ON CONFLICT(aggregate_id) DO UPDATE SET last_local_seq = excluded.last_local_seq",
                 (envelope.aggregateId, aggregate_local_seq),
             )
-            self._conn.commit()
 
             self._enforce_capacity()
             return entry
 
     def _next_aggregate_sequence(self, aggregate_id: str) -> int:
-        row = self._conn.execute(
-            "SELECT last_local_seq FROM edge_local_sequence WHERE aggregate_id = ?",
-            (aggregate_id,),
-        ).fetchone()
+        row = self._db.fetchone(
+            "SELECT last_local_seq FROM edge_local_sequence WHERE aggregate_id = ?", (aggregate_id,)
+        )
         return int(row["last_local_seq"]) + 1 if row else 1
 
     def _branch_point(self, aggregate_id: str) -> int:
-        row = self._conn.execute(
-            "SELECT last_known_fabric_seq FROM edge_branch WHERE aggregate_id = ?",
-            (aggregate_id,),
-        ).fetchone()
+        row = self._db.fetchone(
+            "SELECT last_known_fabric_seq FROM edge_branch WHERE aggregate_id = ?", (aggregate_id,)
+        )
         return int(row["last_known_fabric_seq"]) if row else 0
 
     def set_branch_point(self, aggregate_id: str, fabric_sequence: int) -> None:
         """Record the fabric sequence the edge last saw for an aggregate."""
         with self._lock:
-            self._conn.execute(
+            self._db.execute(
                 "INSERT INTO edge_branch (aggregate_id, last_known_fabric_seq) VALUES (?, ?) "
                 "ON CONFLICT(aggregate_id) DO UPDATE SET "
                 "last_known_fabric_seq = MAX(last_known_fabric_seq, excluded.last_known_fabric_seq)",
                 (aggregate_id, fabric_sequence),
             )
-            self._conn.commit()
 
     def _enforce_capacity(self) -> None:
         """Drop the lowest-priority, oldest entries when over capacity.
@@ -264,13 +282,14 @@ class EdgeQueue:
         telemetry cannot evict the high-priority evidence queued alongside it.
         """
         while self.pending_count() > self._capacity:
-            row = self._conn.execute(
+            rows = self._db.fetchall(
                 "SELECT local_sequence, aggregate_id, event_id, event_type, priority, captured_at "
                 "FROM edge_queue WHERE acknowledged = 0 AND quarantined = 0 "
                 "ORDER BY priority ASC, captured_at ASC, local_sequence ASC LIMIT 1"
-            ).fetchone()
-            if row is None:
+            )
+            if not rows:
                 return
+            row = rows[0]
             dropped = DroppedEntry(
                 eventId=row["event_id"],
                 aggregateId=row["aggregate_id"],
@@ -283,15 +302,12 @@ class EdgeQueue:
                     "priority-then-age policy"
                 ),
             )
-            self._conn.execute(
-                "DELETE FROM edge_queue WHERE local_sequence = ?",
-                (row["local_sequence"],),
-            )
-            self._conn.execute(
-                "INSERT OR REPLACE INTO edge_drops (event_id, body_json) VALUES (?, ?)",
+            self._db.execute("DELETE FROM edge_queue WHERE local_sequence = ?", (row["local_sequence"],))
+            self._db.execute(
+                "INSERT INTO edge_drops (event_id, body_json) VALUES (?, ?) "
+                "ON CONFLICT(event_id) DO UPDATE SET body_json = excluded.body_json",
                 (dropped.eventId, canonical_json(dropped.to_dict())),
             )
-            self._conn.commit()
 
     # -- reading ---------------------------------------------------------
 
@@ -301,14 +317,13 @@ class EdgeQueue:
         The ordering is what makes the push deterministic: the fabric sees
         the edge's events in the edge's own sequence order, per aggregate.
         """
-        with self._lock:
-            rows = self._conn.execute(
-                "SELECT envelope_json, aggregate_local_seq, aggregate_id, event_id, event_type, "
-                "priority, captured_at, branched_from_seq FROM edge_queue "
-                "WHERE acknowledged = 0 AND quarantined = 0 "
-                "ORDER BY aggregate_id ASC, aggregate_local_seq ASC LIMIT ?",
-                (limit,),
-            ).fetchall()
+        rows = self._db.fetchall(
+            "SELECT envelope_json, aggregate_local_seq, aggregate_id, event_id, event_type, "
+            "priority, captured_at, branched_from_seq FROM edge_queue "
+            "WHERE acknowledged = 0 AND quarantined = 0 "
+            "ORDER BY aggregate_id ASC, aggregate_local_seq ASC LIMIT ?",
+            (limit,),
+        )
         return [
             QueueEntry(
                 localSequence=int(row["aggregate_local_seq"]),
@@ -324,15 +339,14 @@ class EdgeQueue:
         ]
 
     def pending_count(self) -> int:
-        row = self._conn.execute(
+        row = self._db.fetchone(
             "SELECT COUNT(*) AS n FROM edge_queue WHERE acknowledged = 0 AND quarantined = 0"
-        ).fetchone()
+        )
         return int(row["n"]) if row else 0
 
     def dropped(self) -> list[DroppedEntry]:
         """Every event the queue has discarded. Silent loss is prohibited."""
-        with self._lock:
-            rows = self._conn.execute("SELECT body_json FROM edge_drops ORDER BY event_id").fetchall()
+        rows = self._db.fetchall("SELECT body_json FROM edge_drops ORDER BY event_id")
         return [DroppedEntry(**json.loads(row["body_json"])) for row in rows]
 
     def acknowledge(self, event_ids: Sequence[str]) -> int:
@@ -341,12 +355,11 @@ class EdgeQueue:
             return 0
         with self._lock:
             placeholders = ",".join("?" for _ in event_ids)
-            cursor = self._conn.execute(
+            self._db.execute(
                 f"UPDATE edge_queue SET acknowledged = 1 WHERE event_id IN ({placeholders})",
                 list(event_ids),
             )
-            self._conn.commit()
-            return cursor.rowcount
+            return self._db.rowcount
 
     def requeue(self, event_id: str) -> bool:
         """Offer an event to the fabric again.
@@ -356,41 +369,37 @@ class EdgeQueue:
         fabric's idempotency makes the retry safe.
         """
         with self._lock:
-            cursor = self._conn.execute(
+            self._db.execute(
                 "UPDATE edge_queue SET acknowledged = 0, quarantined = 0 WHERE event_id = ?",
                 (event_id,),
             )
-            self._conn.commit()
-            return cursor.rowcount > 0
+            return self._db.rowcount > 0
 
     def quarantine(self, event_id: str, reason: str) -> None:
         """Retain an event the fabric could not decide, for operator review."""
         with self._lock:
-            self._conn.execute(
+            self._db.execute(
                 "UPDATE edge_queue SET quarantined = 1, quarantine_reason = ? WHERE event_id = ?",
                 (reason, event_id),
             )
-            self._conn.commit()
 
     def quarantined(self) -> list[dict[str, Any]]:
-        with self._lock:
-            rows = self._conn.execute(
-                "SELECT event_id, aggregate_id, event_type, quarantine_reason FROM edge_queue "
-                "WHERE quarantined = 1 ORDER BY local_sequence"
-            ).fetchall()
+        rows = self._db.fetchall(
+            "SELECT event_id, aggregate_id, event_type, quarantine_reason FROM edge_queue "
+            "WHERE quarantined = 1 ORDER BY local_sequence"
+        )
         return [dict(row) for row in rows]
 
     def aggregates(self) -> dict[str, int]:
         """The edge's local high-water mark per aggregate."""
-        with self._lock:
-            rows = self._conn.execute(
-                "SELECT aggregate_id, MAX(aggregate_local_seq) AS seq FROM edge_queue GROUP BY aggregate_id"
-            ).fetchall()
+        rows = self._db.fetchall(
+            "SELECT aggregate_id, MAX(aggregate_local_seq) AS seq FROM edge_queue GROUP BY aggregate_id"
+        )
         return {row["aggregate_id"]: int(row["seq"]) for row in rows}
 
     def close(self) -> None:
         with self._lock:
-            self._conn.close()
+            self._db.close()
 
 
 @dataclass

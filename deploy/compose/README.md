@@ -156,6 +156,12 @@ timeout specifically so that several services can share one file. It is
 **development-only**. The PostgreSQL service is the platform's target
 relational store and is provisioned in parallel (see below).
 
+Both backends are implemented and the platform's repositories are identical
+across them. The PostgreSQL schema and every statement the platform issues
+are checked against the real PostgreSQL grammar by
+`tests/integration/test_postgres_backend.py`, so a SQLite-only statement
+cannot reach an accredited environment unnoticed.
+
 ### Postgres is provisioned and ready
 
 The `postgres` service runs `postgres:16-alpine` and executes
@@ -176,6 +182,9 @@ platform's configuration layer reads the first of the two that is present.
 
 > The scheme is `postgresql://`, not `postgres://` — the platform's SQL driver
 > accepts only the long form.
+>
+> The `psycopg` driver is a runtime dependency of `ngsh-core`, so it is
+> present in the service images; no extra image build is required.
 >
 > The `ngsh-dev-placeholder` password matches the placeholder that
 > `postgres/init.sql` assigns to the `ngsh_app` role. Both are local
