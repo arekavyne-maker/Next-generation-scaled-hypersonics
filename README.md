@@ -85,7 +85,7 @@ Requires [uv](https://docs.astral.sh/uv/) and Python 3.12+. No Docker needed.
 ```bash
 make setup          # install dependencies
 make verify         # lint + contract validation + full test suite
-make dev            # run the twelve-service platform
+make dev            # run the fifteen-service platform
 make demo           # in another terminal: walk the foundation end to end
 make demo-programme # in another terminal: walk all six pillars in one thread
 make demo-edge      # in another terminal: walk the edge annex flow
@@ -112,6 +112,9 @@ evidence, take a policy decision, and verify the audit chain.
 | testlab | 8091 | Pillar C: campaigns, configuration-gated results, anomalies and the twin loop |
 | supply | 8092 | Pillar D: single-source exposure (C-007), surge and reconstitution |
 | engagement | 8093 | Pillars F and G: threats, scenarios, engagement batches and range slots |
+| industrial | 8094 | Pillar H: verified surge, measured reconstitution and affordability |
+| analytics | 8095 | Programme KPIs computed from the digital thread |
+| integration | 8096 | The IF-1..IF-7 interface register and outbound enforcement |
 
 Every service exposes `/healthz`, `/readyz`, `/v1/service/info` and OpenAPI
 at `/docs`.

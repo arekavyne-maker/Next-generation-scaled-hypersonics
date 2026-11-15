@@ -24,6 +24,8 @@ from ngsh_core.config import Settings, load_settings
 from ngsh_core.envelope import EventEnvelope
 from ngsh_core.errors import ValidationError
 from ngsh_core.graph import GraphProjector
+from ngsh_core.lakehouse import dataset_catalog, dataset_lineage
+from ngsh_core.search import search as search_projection
 from ngsh_core.store import open_database
 
 SERVICE_NAME = "thread"
@@ -125,6 +127,54 @@ async def requirement_coverage(request: Request, requirement_id: str) -> dict[st
     flag.
     """
     return _projector(request).requirement_coverage(requirement_id)
+
+
+@router.get("/search", summary="Search the digital thread")
+async def search(
+    request: Request,
+    q: str = Query(..., min_length=1, description="Free-text query, e.g. 'TPS ablative' or 'PART:NSN-4472'."),
+    type: str | None = Query(None, description="Restrict to one entity type."),
+    limit: int = Query(50, ge=1, le=500),
+) -> dict[str, Any]:
+    """Rank thread entities against a query, with the matched fields.
+
+    The index is a projection over the graph, rebuilt from the log like every
+    other read. Results explain themselves: every hit carries the fields that
+    matched and the score it earned.
+    """
+    entities = _projector(request).entities(limit=10_000)
+    return search_projection(entities, q, entity_type=type, limit=limit)
+
+
+@router.get("/datasets", summary="Catalogue the test data lake")
+async def datasets(request: Request) -> dict[str, Any]:
+    """Build the dataset catalogue from admitted test results.
+
+    A dataset is *configured* only when every result referencing it carries a
+    configuration snapshot. The catalogue is derived from the thread, so it can
+    be rebuilt and never becomes a second source of truth.
+    """
+    results = _projector(request).entities(entity_type="TestResult", limit=10_000)
+    return dataset_catalog(results)
+
+
+@router.get("/datasets/{dataset_id}/lineage", summary="Lineage for one dataset")
+async def dataset_lineage_route(request: Request, dataset_id: str) -> dict[str, Any]:
+    """Resolve a dataset id to the results, configurations and models behind it."""
+    results = _projector(request).entities(entity_type="TestResult", limit=10_000)
+    catalogue = dataset_catalog(results)["datasets"]
+    entry = next((item for item in catalogue if item["datasetId"] == dataset_id), None)
+    if entry is None:
+        return JSONResponse(
+            status_code=404,
+            content={
+                "error": {
+                    "code": "not_found",
+                    "message": f"no dataset with id {dataset_id!r}",
+                }
+            },
+        )
+    return dataset_lineage(entry["uri"], results)
 
 
 @router.get("/graph/stats", summary="Graph statistics")

@@ -30,8 +30,12 @@ from ngsh_core.publish import (
 )
 from ngsh_core.store import open_database
 from ngsh_core.testlab import (
+    apply_drift,
     curate_campaign,
+    fidelity_registry,
     find_slot_conflicts,
+    optimise_schedule,
+    range_capacity,
     surface_anomalies,
     twin_validation,
     validate_result,
@@ -373,6 +377,132 @@ async def book_slot(request: Request, body: dict[str, Any] = Body(...)) -> JSONR
     )
     await publish(request, entity_event(document, actor, registry=request.app.state.registry))
     return JSONResponse(status_code=201, content={"slot": document})
+
+
+# -- G-2: campaign digital twin and range scheduling -------------------------
+
+
+def _range_rows(request: Request) -> list[dict[str, Any]]:
+    """Ranges are Facilities carrying range attributes."""
+    return [
+        {"id": entity["id"], **_attrs(entity)}
+        for entity in _projector(request).entities(entity_type="Facility", limit=5000)
+    ]
+
+
+def _slot_rows(request: Request) -> list[dict[str, Any]]:
+    return [
+        {"id": entity["id"], **_attrs(entity)}
+        for entity in _projector(request).entities(entity_type="RangeSlot", limit=5000)
+    ]
+
+
+@router.post("/range-capacity", summary="Model range capacity, coverage and conflicts")
+async def capacity(request: Request, body: dict[str, Any] = Body(default={})) -> dict[str, Any]:
+    """Report the range enterprise's capacity and conflicts.
+
+    Ranges and slots default to the live thread so that the figure is computed
+    from booked facts, not from a caller's optimistic summary.
+    """
+    ranges = body.get("ranges")
+    if not isinstance(ranges, list) or not ranges:
+        ranges = _range_rows(request)
+    slots = body.get("slots")
+    if not isinstance(slots, list):
+        slots = _slot_rows(request)
+    coverage = body.get("requiredTelemetryCoverage", 0.90)
+    if not isinstance(coverage, int | float):
+        raise ValidationError("'requiredTelemetryCoverage' must be a number between 0 and 1")
+    return range_capacity(
+        ranges=ranges,
+        slots=slots,
+        required_telemetry_coverage=float(coverage),
+    )
+
+
+@router.post("/schedule/optimise", summary="Assign campaigns to ranges under constraints")
+async def schedule(request: Request, body: dict[str, Any] = Body(default={})) -> dict[str, Any]:
+    """Produce a reproducible range schedule from demands and live ranges."""
+    demands = body.get("demands")
+    if not isinstance(demands, list):
+        demands = [
+            {
+                "demandId": entity["id"],
+                **_attrs(entity),
+            }
+            for entity in _projector(request).entities(entity_type="TestCampaign", limit=5000)
+        ]
+    ranges = body.get("ranges")
+    if not isinstance(ranges, list) or not ranges:
+        ranges = _range_rows(request)
+    baseline = body.get("baseline")
+    if baseline is not None and not isinstance(baseline, dict):
+        raise ValidationError("'baseline' must be an object")
+    return optimise_schedule(demands=demands, ranges=ranges, baseline=baseline)
+
+
+# -- G-4: fidelity registry and model governance -----------------------------
+
+
+@router.get("/fidelity/registry", summary="Model fidelity registry and release gate")
+async def fidelity(request: Request, asOf: str = Query(...)) -> dict[str, Any]:
+    """Every model with card completeness, approval ageing and drift."""
+    models = [
+        {"id": entity["id"], **_attrs(entity)}
+        for entity in _projector(request).entities(entity_type="Model", limit=5000)
+    ]
+    return fidelity_registry(models=models, as_of=asOf)
+
+
+@router.post("/fidelity/{model_id}/drift", summary="Apply a drift observation to a model")
+async def drift(request: Request, model_id: str, body: dict[str, Any] = Body(...)) -> dict[str, Any]:
+    """Record drift and withdraw approval when it crosses the threshold.
+
+    The withdrawal is written back as an ``entity.updated`` event on the
+    ``Model``, so the governance act is in the log rather than in a dashboard.
+    """
+    entity = _require(request, "Model", model_id)
+    report = apply_drift(
+        {"id": model_id, **_attrs(entity)},
+        drift_metric=body.get("driftMetric"),
+        drift_value=body.get("driftValue"),
+        drift_thresholds=body.get("thresholds"),
+    )
+
+    if report["approvalWithdrawn"]:
+        settings: Settings = request.app.state.settings
+        actor = actor_for(settings, request)
+        updated_attributes = {
+            **_attrs(entity),
+            "drift": report["model"].get("drift"),
+            "approvedForUse": False,
+        }
+        document = entity_document(
+            "Model",
+            model_id,
+            updated_attributes,
+            tenant=settings.tenant,
+            program=settings.program,
+            created_by=entity.get("createdBy") or actor.subjectId,
+            version=int(entity.get("version") or 1) + 1,
+            provenance={"source": "testlab-service", "method": "drift-withdrawal"},
+        )
+        await publish(
+            request,
+            entity_event(
+                document,
+                actor,
+                event_type="entity.updated",
+                sequence=next_sequence(request.app.state.executor, model_id),
+                registry=request.app.state.registry,
+            ),
+        )
+        report["recorded"] = True
+        report["entityDocument"] = document
+    else:
+        report["recorded"] = False
+
+    return report
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:

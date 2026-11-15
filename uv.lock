@@ -5,13 +5,16 @@ requires-python = ">=3.12"
 [manifest]
 members = [
     "ngsh",
+    "ngsh-analytics-service",
     "ngsh-architecture-service",
     "ngsh-audit-service",
     "ngsh-core",
     "ngsh-edge-agent",
     "ngsh-engagement-service",
     "ngsh-fabric-service",
+    "ngsh-industrial-service",
     "ngsh-ingest-service",
+    "ngsh-integration-service",
     "ngsh-manufacturing-service",
     "ngsh-ontology-service",
     "ngsh-policy-service",
@@ -390,13 +393,16 @@ name = "ngsh"
 version = "0.1.0"
 source = { virtual = "." }
 dependencies = [
+    { name = "ngsh-analytics-service" },
     { name = "ngsh-architecture-service" },
     { name = "ngsh-audit-service" },
     { name = "ngsh-core" },
     { name = "ngsh-edge-agent" },
     { name = "ngsh-engagement-service" },
     { name = "ngsh-fabric-service" },
+    { name = "ngsh-industrial-service" },
     { name = "ngsh-ingest-service" },
+    { name = "ngsh-integration-service" },
     { name = "ngsh-manufacturing-service" },
     { name = "ngsh-ontology-service" },
     { name = "ngsh-policy-service" },
@@ -419,13 +425,16 @@ dev = [
 
 [package.metadata]
 requires-dist = [
+    { name = "ngsh-analytics-service", editable = "services/analytics-service" },
     { name = "ngsh-architecture-service", editable = "services/architecture-service" },
     { name = "ngsh-audit-service", editable = "services/audit-service" },
     { name = "ngsh-core", editable = "libs/ngsh-core" },
     { name = "ngsh-edge-agent", editable = "apps/edge-agent" },
     { name = "ngsh-engagement-service", editable = "services/engagement-service" },
     { name = "ngsh-fabric-service", editable = "services/fabric-service" },
+    { name = "ngsh-industrial-service", editable = "services/industrial-service" },
     { name = "ngsh-ingest-service", editable = "services/ingest-service" },
+    { name = "ngsh-integration-service", editable = "services/integration-service" },
     { name = "ngsh-manufacturing-service", editable = "services/manufacturing-service" },
     { name = "ngsh-ontology-service", editable = "services/ontology-service" },
     { name = "ngsh-policy-service", editable = "services/policy-service" },
@@ -445,6 +454,17 @@ dev = [
     { name = "pytest-cov", specifier = ">=5.0" },
     { name = "ruff", specifier = ">=0.5" },
 ]
+
+[[package]]
+name = "ngsh-analytics-service"
+version = "0.1.0"
+source = { editable = "services/analytics-service" }
+dependencies = [
+    { name = "ngsh-core" },
+]
+
+[package.metadata]
+requires-dist = [{ name = "ngsh-core", editable = "libs/ngsh-core" }]
 
 [[package]]
 name = "ngsh-architecture-service"
@@ -538,9 +558,31 @@ dependencies = [
 requires-dist = [{ name = "ngsh-core", editable = "libs/ngsh-core" }]
 
 [[package]]
+name = "ngsh-industrial-service"
+version = "0.1.0"
+source = { editable = "services/industrial-service" }
+dependencies = [
+    { name = "ngsh-core" },
+]
+
+[package.metadata]
+requires-dist = [{ name = "ngsh-core", editable = "libs/ngsh-core" }]
+
+[[package]]
 name = "ngsh-ingest-service"
 version = "0.1.0"
 source = { editable = "services/ingest-service" }
+dependencies = [
+    { name = "ngsh-core" },
+]
+
+[package.metadata]
+requires-dist = [{ name = "ngsh-core", editable = "libs/ngsh-core" }]
+
+[[package]]
+name = "ngsh-integration-service"
+version = "0.1.0"
+source = { editable = "services/integration-service" }
 dependencies = [
     { name = "ngsh-core" },
 ]

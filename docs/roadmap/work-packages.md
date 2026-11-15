@@ -68,6 +68,25 @@ This document is the full work breakdown for the NGSH programme. Work is express
 | **Total** | **49** | **7,130** | **~8.3** | All 34 PSDD capability ids |
 **Sizes and calendar.** The sizes above are derived from the work packages themselves, not maintained by hand; the summary is regenerated whenever a package changes. Total programme effort is **7,130 engineer-weeks** across **49 work packages**, with a peak demand of about **8.3 pod-equivalents**. At the ~25-engineer reference organisation the programme runs roughly 3–4 pods and extends over 5–6 years; at ~60 engineers (roughly 8–9 pods) it compresses to about 2.5–3.5 years; at ~120 engineers (roughly 15–17 pods) the binding constraint shifts from engineering capacity to partner access and accreditation. The relationships are set out in [`../staffing.md`](../staffing.md).
 
+### Delivery status of this reference implementation
+
+The code in this repository implements a first pass of every pillar capability
+in the PSDD. "Delivered" here means the rule is executable and covered by a
+test; it does **not** mean the acceptance criteria are met against real
+partner data, hardware or an accredited environment.
+
+| Increment | Work packages represented in code | What is still external |
+|---|---|---|
+| 1 | WP-1.1..WP-1.7: baselines, traceability, training scenarios, curriculum packages, credentials, demand gap, sanitised extracts | PIV/ICAM, partner training exchanges, real curriculum delivery |
+| 2 | WP-2.1..WP-2.8: travellers, process runs, drift, genealogy, rate, results admission, anomalies, twin validation, campaign/range coordination | Prime PLM/MES, AR/VR cells, range instrumentation, production reduction pipeline |
+| 3 | WP-3.1..WP-3.6: multi-tier risk, single-source exposure, surge readiness, reconstitution, affordability trace and rate curve | Supplier portals and contract data, classified demand, live production cost |
+| 4 | WP-4.1..WP-4.10: threats, deterministic batches, fire-control quality, interim candidates, plug-in host, co-simulation, range slots, capacity/scheduling, fidelity registry | IF-3 outbound to SDA/PWSA, high-fidelity threat models, hardware-in-the-loop |
+| 5 | WP-5.1, WP-5.2: variant generation, insertion assessment, ICDs and reference-architecture catalogue | WP-5.3..WP-5.5: SysML v2 authoring, full-stack flight demonstration, accreditation package |
+
+The 34 PSDD capability ids therefore each have a runnable reference path, but
+none is yet *verified* against its exit criteria; that verification is the
+purpose of WP-5.5 and the external dependencies above.
+
 ## 4. Increment 0 work packages
 
 ### WP-0.1 — Contract substrate and codegen pipeline

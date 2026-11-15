@@ -33,7 +33,16 @@ from ngsh_core.architecture import (
 from ngsh_core.config import Settings, load_settings
 from ngsh_core.errors import NotFoundError, ValidationError
 from ngsh_core.graph import GraphProjector
+from ngsh_core.modularity import (
+    REFERENCE_ARCHITECTURES,
+    assess_insertion,
+    catalogue_report,
+    generate_icd,
+    generate_variants,
+    verify_icd,
+)
 from ngsh_core.ontology import OntologyLoader
+from ngsh_core.publish import actor_for, entity_document, entity_event, publish
 from ngsh_core.store import open_database
 
 from .repository import BaselineRepository, InterfaceRepository
@@ -258,6 +267,194 @@ async def gaps(
         if report["gaps"] or report["reviewItems"]:
             open_items.append(report)
     return {"requirements": open_items, "count": len(open_items)}
+
+
+# -- A-2: family-of-systems generation ---------------------------------------
+
+
+@router.post("/variants/generate", summary="Generate a variant family from a common core", status_code=201)
+async def generate(request: Request, body: dict[str, Any] = Body(...)) -> JSONResponse:
+    """Generate variants and publish each one as a ``Variant`` entity.
+
+    The generated set is content-addressed by the common core and the variant
+    designation, so re-running the generator is idempotent in content even
+    though the entity events are new versions. A refused variant is returned
+    with its library reasons and no entity is written for it.
+    """
+    result = generate_variants(
+        family_id=body.get("familyId"),
+        core_members=body.get("coreMembers"),
+        variant_specs=body.get("variantSpecs"),
+        library_rules=body.get("libraryRules"),
+    )
+
+    settings: Settings = request.app.state.settings
+    actor = actor_for(settings, request)
+    envelopes = []
+    for variant in result["variants"]:
+        document = entity_document(
+            "Variant",
+            variant["id"],
+            {
+                "systemId": variant["systemId"],
+                "variantId": variant["variantId"],
+                "configurationVersion": variant["configurationVersion"],
+                "distinguishingCharacteristics": variant["distinguishingCharacteristics"],
+                "familyId": variant["familyId"],
+                "billOfMaterials": variant["billOfMaterials"],
+                "billOfMaterialsDigest": variant["billOfMaterialsDigest"],
+                "coreId": variant["coreId"],
+                "coreDigest": variant["coreDigest"],
+                "memberCount": variant["memberCount"],
+            },
+            tenant=settings.tenant,
+            program=settings.program,
+            created_by=actor.subjectId,
+            provenance={"source": "architecture-service", "method": "variant-generation"},
+        )
+        envelopes.append(entity_event(document, actor, registry=request.app.state.registry))
+        variant["entityDocument"] = document
+
+    if envelopes:
+        await publish(request, *envelopes)
+    return JSONResponse(status_code=201, content=result)
+
+
+@router.post("/variants/{variant_id}/core-error", summary="Show which variants inherited a core defect")
+async def core_error(request: Request, variant_id: str, body: dict[str, Any] = Body(...)) -> dict[str, Any]:
+    """Propagate a core finding across the generated family."""
+    entity = _projector(request).entity("Variant", variant_id)
+    if entity is None:
+        raise NotFoundError(f"no Variant with id {variant_id!r}")
+    family_id = (entity.get("attributes") or {}).get("familyId")
+    family = [
+        {
+            "variantId": (candidate.get("attributes") or {}).get("variantId"),
+            "billOfMaterials": (candidate.get("attributes") or {}).get("billOfMaterials") or [],
+        }
+        for candidate in _projector(request).entities(entity_type="Variant", limit=5000)
+        if (candidate.get("attributes") or {}).get("familyId") == family_id
+    ]
+    from ngsh_core.modularity import propagate_core_error
+
+    finding = body.get("finding")
+    if not isinstance(finding, dict):
+        raise ValidationError("'finding' must be an object naming the affected entityId")
+    return propagate_core_error(finding=finding, variants=family)
+
+
+# -- A-4: technology insertion -----------------------------------------------
+
+
+@router.post("/insertion/assess", summary="Assess a technology insertion against slots and maturity")
+async def insertion(request: Request, body: dict[str, Any] = Body(...)) -> dict[str, Any]:
+    candidate = body.get("candidate")
+    if not isinstance(candidate, dict):
+        raise ValidationError("'candidate' must be an object")
+    projector = _projector(request)
+    subsystems = [
+        {"id": entity["id"], **(entity.get("attributes") or {})}
+        for entity in projector.entities(entity_type="Subsystem", limit=5000)
+    ]
+    slots = body.get("slots")
+    if not isinstance(slots, list):
+        slots = [
+            {"slotId": entity["id"], **(entity.get("attributes") or {})}
+            for entity in projector.entities(entity_type="RangeSlot", limit=5000)
+        ]
+    existing = body.get("existingInsertions") or []
+    if not isinstance(existing, list):
+        raise ValidationError("'existingInsertions' must be a list")
+    return assess_insertion(
+        candidate=candidate,
+        subsystems=subsystems,
+        slots=slots,
+        existing_insertions=existing,
+    )
+
+
+# -- A-5: ICDs and reference architectures -----------------------------------
+
+
+def _interface_record(request: Request, body: dict[str, Any]) -> dict[str, Any]:
+    digest = body.get("interfaceDigest")
+    if isinstance(digest, str) and digest:
+        record = next(
+            (item for item in _interfaces(request).list(limit=1000) if item["digest"] == digest),
+            None,
+        )
+        if record is None:
+            raise NotFoundError(f"no registered interface with digest {digest!r}")
+        return record
+
+    characteristics = validate_interface(
+        from_system_id=body.get("fromSystemId"),
+        to_system_id=body.get("toSystemId"),
+        characteristics=body.get("characteristics"),
+    )
+    return {
+        "interfaceId": body.get("interfaceId"),
+        "fromSystemId": body["fromSystemId"],
+        "toSystemId": body["toSystemId"],
+        "characteristics": characteristics,
+        "digest": interface_digest(
+            from_system_id=body["fromSystemId"],
+            to_system_id=body["toSystemId"],
+            characteristics=characteristics,
+        ),
+    }
+
+
+@router.post("/icds/generate", summary="Generate an ICD from a registered interface")
+async def icd_generate(request: Request, body: dict[str, Any] = Body(...)) -> dict[str, Any]:
+    """Generate an ICD and verify it against the systems it names.
+
+    An ICD is derived from the interface characteristics a baseline pins. It is
+    not authored separately, so it cannot drift from the interface without its
+    digest changing.
+    """
+    record = _interface_record(request, body)
+    projector = _projector(request)
+    from_system = projector.entity("System", record["fromSystemId"])
+    to_system = projector.entity("System", record["toSystemId"])
+    if from_system is None:
+        raise NotFoundError(f"no System with id {record['fromSystemId']!r}")
+    if to_system is None:
+        raise NotFoundError(f"no System with id {record['toSystemId']!r}")
+
+    icd = generate_icd(interface=record, from_system=from_system, to_system=to_system)
+    verification = verify_icd(
+        icd=icd, interface=record, from_system=from_system, to_system=to_system
+    )
+    return {"icd": icd, "verification": verification}
+
+
+@router.post("/icds/verify", summary="Verify an ICD against an interface revision")
+async def icd_verify(request: Request, body: dict[str, Any] = Body(...)) -> dict[str, Any]:
+    icd = body.get("icd")
+    if not isinstance(icd, dict):
+        raise ValidationError("'icd' must be an object")
+    record = _interface_record(request, body)
+    projector = _projector(request)
+    return verify_icd(
+        icd=icd,
+        interface=record,
+        from_system=projector.entity("System", record["fromSystemId"]),
+        to_system=projector.entity("System", record["toSystemId"]),
+    )
+
+
+@router.get("/reference-architectures", summary="Pre-integrated DoN reference architectures")
+async def reference_architectures() -> dict[str, Any]:
+    return catalogue_report(list(REFERENCE_ARCHITECTURES))
+
+
+@router.post("/reference-architectures/report", summary="Validate a supplied reference-architecture catalogue")
+async def reference_architectures_report(request: Request, body: dict[str, Any] = Body(...)) -> dict[str, Any]:
+    architectures = body.get("architectures")
+    if not isinstance(architectures, list):
+        raise ValidationError("'architectures' must be a list")
+    return catalogue_report(architectures, minimum=int(body.get("minimum", 3)))
 
 
 def _requirement_ids(projector: GraphProjector, body: dict[str, Any]) -> list[str]:

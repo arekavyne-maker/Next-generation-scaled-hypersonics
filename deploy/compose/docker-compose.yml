@@ -759,6 +759,138 @@ services:
       retries: 12
       start_period: 20s
 
+  industrial-service:
+    <<: *ngsh-service-base
+    image: ${NGSH_INDUSTRIAL_IMAGE:-ngsh/industrial-service:dev}
+    build:
+      context: ../../
+      dockerfile: services/industrial-service/Dockerfile
+      args:
+        SERVICE_NAME: industrial-service
+    container_name: ngsh-industrial-service
+    environment:
+      <<: *ngsh-common-env
+      NGSH_SERVICE_NAME: industrial-service
+      PORT: "8094"
+      NGSH_PORT: "8094"
+      NGSH_DATA_DIR: /var/lib/ngsh/industrial
+      NGSH_FABRIC_URL: "http://fabric-service:8082"
+      NGSH_ONTOLOGY_URL: "http://ontology-service:8081"
+      NGSH_THREAD_URL: "http://thread-service:8085"
+    volumes:
+      - ngsh-data:/var/lib/ngsh/platform
+      - ngsh-industrial-data:/var/lib/ngsh/industrial
+    ports:
+      - target: 8094
+        published: "${INDUSTRIAL_HOST_PORT:-8094}"
+        protocol: tcp
+        mode: host
+    depends_on:
+      init-data:
+        condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
+      fabric-service:
+        condition: service_healthy
+      ontology-service:
+        condition: service_healthy
+      thread-service:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8094/healthz >/dev/null || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+
+  analytics-service:
+    <<: *ngsh-service-base
+    image: ${NGSH_ANALYTICS_IMAGE:-ngsh/analytics-service:dev}
+    build:
+      context: ../../
+      dockerfile: services/analytics-service/Dockerfile
+      args:
+        SERVICE_NAME: analytics-service
+    container_name: ngsh-analytics-service
+    environment:
+      <<: *ngsh-common-env
+      NGSH_SERVICE_NAME: analytics-service
+      PORT: "8095"
+      NGSH_PORT: "8095"
+      NGSH_DATA_DIR: /var/lib/ngsh/analytics
+      NGSH_FABRIC_URL: "http://fabric-service:8082"
+      NGSH_ONTOLOGY_URL: "http://ontology-service:8081"
+      NGSH_THREAD_URL: "http://thread-service:8085"
+    volumes:
+      - ngsh-data:/var/lib/ngsh/platform
+      - ngsh-analytics-data:/var/lib/ngsh/analytics
+    ports:
+      - target: 8095
+        published: "${ANALYTICS_HOST_PORT:-8095}"
+        protocol: tcp
+        mode: host
+    depends_on:
+      init-data:
+        condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
+      fabric-service:
+        condition: service_healthy
+      ontology-service:
+        condition: service_healthy
+      thread-service:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8095/healthz >/dev/null || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+
+  integration-service:
+    <<: *ngsh-service-base
+    image: ${NGSH_INTEGRATION_IMAGE:-ngsh/integration-service:dev}
+    build:
+      context: ../../
+      dockerfile: services/integration-service/Dockerfile
+      args:
+        SERVICE_NAME: integration-service
+    container_name: ngsh-integration-service
+    environment:
+      <<: *ngsh-common-env
+      NGSH_SERVICE_NAME: integration-service
+      PORT: "8096"
+      NGSH_PORT: "8096"
+      NGSH_DATA_DIR: /var/lib/ngsh/integration
+      NGSH_FABRIC_URL: "http://fabric-service:8082"
+      NGSH_ONTOLOGY_URL: "http://ontology-service:8081"
+      NGSH_THREAD_URL: "http://thread-service:8085"
+    volumes:
+      - ngsh-data:/var/lib/ngsh/platform
+      - ngsh-integration-data:/var/lib/ngsh/integration
+    ports:
+      - target: 8096
+        published: "${INTEGRATION_HOST_PORT:-8096}"
+        protocol: tcp
+        mode: host
+    depends_on:
+      init-data:
+        condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
+      fabric-service:
+        condition: service_healthy
+      ontology-service:
+        condition: service_healthy
+      thread-service:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8096/healthz >/dev/null || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+
   ingest-service:
     <<: *ngsh-service-base
     image: ${NGSH_INGEST_IMAGE:-ngsh/ingest-service:dev}
@@ -1001,6 +1133,12 @@ volumes:
     name: ngsh-supply-data
   ngsh-engagement-data:
     name: ngsh-engagement-data
+  ngsh-industrial-data:
+    name: ngsh-industrial-data
+  ngsh-analytics-data:
+    name: ngsh-analytics-data
+  ngsh-integration-data:
+    name: ngsh-integration-data
   ngsh-edge-data:
     name: ngsh-edge-data
   ngsh-edge-fabric-data:

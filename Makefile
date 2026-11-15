@@ -17,7 +17,7 @@ export NGSH_DSN ?= sqlite:///./$(DATA_DIR)/ngsh.db
 export NGSH_TENANT ?= ngsh
 export NGSH_DEPLOYMENT_PROFILE ?= local
 
-SERVICE_PORTS := ontology:8081 fabric:8082 policy:8083 audit:8084 thread:8085 ingest:8086 architecture:8088 workforce:8089 manufacturing:8090 testlab:8091 supply:8092 engagement:8093
+SERVICE_PORTS := ontology:8081 fabric:8082 policy:8083 audit:8084 thread:8085 ingest:8086 architecture:8088 workforce:8089 manufacturing:8090 testlab:8091 supply:8092 engagement:8093 industrial:8094 analytics:8095 integration:8096
 
 .PHONY: help
 help: ## Show the available targets
@@ -114,6 +114,18 @@ dev-supply: ## Run the supply service
 .PHONY: dev-engagement
 dev-engagement: ## Run the engagement service
 	NGSH_SERVICE_NAME=engagement NGSH_PORT=8093 $(PY) -m ngsh_engagement.app
+
+.PHONY: dev-industrial
+dev-industrial: ## Run the industrial service (Pillar H)
+	NGSH_SERVICE_NAME=industrial NGSH_PORT=8094 $(PY) -m ngsh_industrial.app
+
+.PHONY: dev-analytics
+dev-analytics: ## Run the analytics service (programme KPIs)
+	NGSH_SERVICE_NAME=analytics NGSH_PORT=8095 $(PY) -m ngsh_analytics.app
+
+.PHONY: dev-integration
+dev-integration: ## Run the integration service (interface register)
+	NGSH_SERVICE_NAME=integration NGSH_PORT=8096 $(PY) -m ngsh_integration.app
 
 .PHONY: demo
 demo: ## Exercise the full vertical slice against the running stack

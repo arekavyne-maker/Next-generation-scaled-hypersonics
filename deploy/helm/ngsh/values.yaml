@@ -117,6 +117,12 @@ deploymentProfiles:
           replicaCount: 1
         engagement:
           replicaCount: 1
+        industrial:
+          replicaCount: 1
+        analytics:
+          replicaCount: 1
+        integration:
+          replicaCount: 1
 
     # -------------------------------------------------------------------------
     # il5 — accredited cloud enclave
@@ -240,6 +246,18 @@ deploymentProfiles:
           replicaCount: 2
           autoscaling:
             enabled: false
+        industrial:
+          replicaCount: 2
+          autoscaling:
+            enabled: false
+        analytics:
+          replicaCount: 2
+          autoscaling:
+            enabled: false
+        integration:
+          replicaCount: 2
+          autoscaling:
+            enabled: false
 
     # -------------------------------------------------------------------------
     # il6 — on-prem classified enclave
@@ -360,6 +378,12 @@ deploymentProfiles:
             # The console is not a data-plane service; a budget here would
             # block every node drain in the enclave.
             enabled: false
+        industrial:
+          replicaCount: 1
+        analytics:
+          replicaCount: 1
+        integration:
+          replicaCount: 1
 
     # -------------------------------------------------------------------------
     # edge — segregated single-node annex
@@ -468,6 +492,12 @@ deploymentProfiles:
         supply:
           replicaCount: 1
         engagement:
+          replicaCount: 1
+        industrial:
+          replicaCount: 1
+        analytics:
+          replicaCount: 1
+        integration:
           replicaCount: 1
 
 # -----------------------------------------------------------------------------
@@ -1419,6 +1449,222 @@ services:
     image:
       registry: ""
       repository: "ngsh/architecture-service"
+      tag: ""
+      pullPolicy: ""
+    resources:
+      requests:
+        cpu: "200m"
+        memory: "512Mi"
+      limits:
+        cpu: "2"
+        memory: "2Gi"
+    probes:
+      liveness:
+        path: "/healthz"
+        initialDelaySeconds: 15
+        periodSeconds: 20
+        timeoutSeconds: 3
+        failureThreshold: 3
+      readiness:
+        path: "/readyz"
+        initialDelaySeconds: 5
+        periodSeconds: 10
+        timeoutSeconds: 3
+        failureThreshold: 3
+      startup:
+        path: "/healthz"
+        initialDelaySeconds: 10
+        periodSeconds: 5
+        failureThreshold: 30
+    env: []
+    envFrom: []
+    extraEnv: []
+    autoscaling:
+      enabled: null
+      minReplicas: null
+      maxReplicas: null
+      targetCPUUtilizationPercentage: null
+    podDisruptionBudget:
+      enabled: null
+      minAvailable: null
+      maxUnavailable: null
+    persistence:
+      enabled: null
+      size: null
+      storageClass: null
+      accessModes: null
+      existingClaim: null
+      mountPath: null
+    networkPolicy:
+      enabled: null
+      extraIngress: []
+      extraEgress: []
+    nodeSelector: {}
+    tolerations: []
+    affinity: {}
+    topologySpreadConstraints: []
+    podAnnotations: {}
+    podLabels: {}
+    extraVolumes: []
+    extraVolumeMounts: []
+    service:
+      type: ClusterIP
+      annotations: {}
+      labels: {}
+
+  industrial:
+    enabled: true
+    name: "industrial-service"
+    port: 8094
+    upstreams: ["fabric", "ontology", "thread"]
+    replicaCount: 1
+    image:
+      registry: ""
+      repository: "ngsh/industrial-service"
+      tag: ""
+      pullPolicy: ""
+    resources:
+      requests:
+        cpu: "200m"
+        memory: "512Mi"
+      limits:
+        cpu: "2"
+        memory: "2Gi"
+    probes:
+      liveness:
+        path: "/healthz"
+        initialDelaySeconds: 15
+        periodSeconds: 20
+        timeoutSeconds: 3
+        failureThreshold: 3
+      readiness:
+        path: "/readyz"
+        initialDelaySeconds: 5
+        periodSeconds: 10
+        timeoutSeconds: 3
+        failureThreshold: 3
+      startup:
+        path: "/healthz"
+        initialDelaySeconds: 10
+        periodSeconds: 5
+        failureThreshold: 30
+    env: []
+    envFrom: []
+    extraEnv: []
+    autoscaling:
+      enabled: null
+      minReplicas: null
+      maxReplicas: null
+      targetCPUUtilizationPercentage: null
+    podDisruptionBudget:
+      enabled: null
+      minAvailable: null
+      maxUnavailable: null
+    persistence:
+      enabled: null
+      size: null
+      storageClass: null
+      accessModes: null
+      existingClaim: null
+      mountPath: null
+    networkPolicy:
+      enabled: null
+      extraIngress: []
+      extraEgress: []
+    nodeSelector: {}
+    tolerations: []
+    affinity: {}
+    topologySpreadConstraints: []
+    podAnnotations: {}
+    podLabels: {}
+    extraVolumes: []
+    extraVolumeMounts: []
+    service:
+      type: ClusterIP
+      annotations: {}
+      labels: {}
+
+  analytics:
+    enabled: true
+    name: "analytics-service"
+    port: 8095
+    upstreams: ["fabric", "ontology", "thread"]
+    replicaCount: 1
+    image:
+      registry: ""
+      repository: "ngsh/analytics-service"
+      tag: ""
+      pullPolicy: ""
+    resources:
+      requests:
+        cpu: "200m"
+        memory: "512Mi"
+      limits:
+        cpu: "2"
+        memory: "2Gi"
+    probes:
+      liveness:
+        path: "/healthz"
+        initialDelaySeconds: 15
+        periodSeconds: 20
+        timeoutSeconds: 3
+        failureThreshold: 3
+      readiness:
+        path: "/readyz"
+        initialDelaySeconds: 5
+        periodSeconds: 10
+        timeoutSeconds: 3
+        failureThreshold: 3
+      startup:
+        path: "/healthz"
+        initialDelaySeconds: 10
+        periodSeconds: 5
+        failureThreshold: 30
+    env: []
+    envFrom: []
+    extraEnv: []
+    autoscaling:
+      enabled: null
+      minReplicas: null
+      maxReplicas: null
+      targetCPUUtilizationPercentage: null
+    podDisruptionBudget:
+      enabled: null
+      minAvailable: null
+      maxUnavailable: null
+    persistence:
+      enabled: null
+      size: null
+      storageClass: null
+      accessModes: null
+      existingClaim: null
+      mountPath: null
+    networkPolicy:
+      enabled: null
+      extraIngress: []
+      extraEgress: []
+    nodeSelector: {}
+    tolerations: []
+    affinity: {}
+    topologySpreadConstraints: []
+    podAnnotations: {}
+    podLabels: {}
+    extraVolumes: []
+    extraVolumeMounts: []
+    service:
+      type: ClusterIP
+      annotations: {}
+      labels: {}
+
+  integration:
+    enabled: true
+    name: "integration-service"
+    port: 8096
+    upstreams: ["fabric", "ontology", "thread"]
+    replicaCount: 1
+    image:
+      registry: ""
+      repository: "ngsh/integration-service"
       tag: ""
       pullPolicy: ""
     resources:
