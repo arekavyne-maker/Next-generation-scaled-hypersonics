@@ -152,6 +152,12 @@ and content-addressed storage).
 exposed by its own deployable service. A pillar writes facts as events and reads
 them from the projection. Pillars can be deployed and licensed independently.
 
+![Layered architecture and integrated flows: the contract layer, the gateway, the six foundation services, eight pillars, seven external interfaces and the edge annex](assets/system-architecture.png)
+
+*Figure 1 — Layered architecture and integrated flows. Solid arrows are synchronous
+requests, dashed arrows are replay or store-and-forward, and the dotted line is the
+trust boundary. The numbered callouts mark the write path in §4.2.*
+
 ### 4.2 Write path
 
 ```
@@ -164,6 +170,8 @@ caller ─▶ gateway ─▶ service
                        ├─ append ledger entry (hash chain)
                        └─ project event into the thread
 ```
+
+The numbered callouts in Figure 1 trace this path from the console to the thread.
 
 Two details are deliberate. The ledger entry and the access decision are both
 written: an authorisation produces an `access.decision.recorded` event *and* a chain
